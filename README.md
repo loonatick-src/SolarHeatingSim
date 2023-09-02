@@ -112,8 +112,20 @@ We have equations of the form
 
 ```math
 \begin{bmatrix}
-
-\end{bmatrix}
+T^{n+1}_{p,1}\\
+T^{n+1}_{p,2}\\
+T^{n+1}_{p,3}\\
+\vdots\\
+T^{n+1}_{p,N_c}\\
+T^{n+1}_{f,1}\\
+T^{n+1}_{f,2}\\
+\vdots\\
+T^{n+1}_{f, N_c}\\
+T^{n+1}_{l,1}\\
+T^{n+1}_{l,2}\\
+\vdots
+T^{n+1}_{l,N_s}
+\end{bmatrix} = f(\mathbf{T_p}^n, \mathbf{T_f}^n, \mathbf{T_l}^n)
 ```
 
 
