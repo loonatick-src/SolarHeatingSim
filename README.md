@@ -33,10 +33,10 @@ struct SWHSModel{T}
     Acs::T  # fluid flow cross section area
 end
 ```
-
-## Collector
-Heat transfer between plate and fluid modelled as convection using Newton's law of cooling [1].
-### Plate
+## Subsystems
+### Collector
+We consider a flat plate collector with parallel riser tubes (TODO: add figure) modelled as an absorber plate transfering heat to the fluid in the risers. This model is based on the work of [4]. Heat transfer between plate and fluid modelled as convection using Newton's law of cooling [1].
+#### Plate
 We have the following processes
 - Solar radiation, $\propto T_p^4 - T_{\text{sky}}^4$ (Stefan-Boltzmann law)
 - Convective transfer to fluid, $\propto  T_p - T_f$ (Newton's law of cooling)
@@ -48,11 +48,18 @@ where $\alpha$ is a constant that includes the Stefan-Boltzmann constant, emissi
 
 $$W\rho_p \delta \frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_{pa}(T_p - T_a) - W\alpha(T_p^4 - T_{\text{sky}}^4)$$
 
-### Working Fluid
+#### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the convective transfer
+
 ## Storage Tank
 [2]
-# References
+
+## Numerical Considerations
+
+## Possible Refinements
+
+
+##  References
 - [1] Incropera, Frank P., et al. Fundamentals of heat and mass transfer. Vol. 6. New York: Wiley, 1996.
 - [2] Zeghib, I., & Chaker, A. (2011). Simulation of a solar domestic water heating system. Energy Procedia, 6, 292-301.
 - [3] Kalita, K. (2020). Solar Energy Engineering and Technology [MOOC]. NPTEL. https://onlinecourses.nptel.ac.in/noc20_ph14/preview
