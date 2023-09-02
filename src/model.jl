@@ -17,8 +17,12 @@ struct SWHSModel{T}
     Up::T   # loss coefficient (collector plate)
     hpf::T  # plate-fluid heat transfer coefficient
     Acs::T  # fluid flow cross section area
+    Ns::Int # striations count
+    function SWHSModel()
+        
+    end
 end
 
-function semidiscretize(model::SWHSModel{T}; Nc = 100, Nt = 10) where {T}
+function semidiscretize(model::SWHSModel; Nc = 100)
     
 end

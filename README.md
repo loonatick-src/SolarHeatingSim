@@ -59,10 +59,14 @@ We use a stratified, well-mixed tank model (TODO: add figure)
 $$\rho V C_p \frac{dT_{l,i}}{dt} = \dot{m} C_p T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a),$$
 for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_f(t, L)$. The assumption here is that the pipes are short or transport from collector to tank is sufficiently fast.
 Note that $T_l$ is the temperature of the same working fluid as in the collector, but we use a different subscript to distinguish between the two systems.
-
+This model is based on lecture 29 of [3].
 
 ## Numerical Considerations
+We use central differences for spatial derivatives in the collector equations.
 
+$$\frac{\partial T}{\partial y} \approx \frac{T_{i+1} - T_{i-1}}{\Delta y},$$
+
+where $T_i = T(t, i\Delta y)$.
 ## Possible Refinements
 
 
