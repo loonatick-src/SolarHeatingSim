@@ -49,10 +49,17 @@ where $\alpha$ is a constant that includes the Stefan-Boltzmann constant, emissi
 $$W\rho_p \delta \frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_{pa}(T_p - T_a) - W\alpha(T_p^4 - T_{\text{sky}}^4)$$
 
 #### Working Fluid
-We model heat transfer through and by the fluid using a 1D advection equation with the convective transfer
+We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
+
+$$\rho_fC_{pf}$$
+
 
 ## Storage Tank
-[2]
+We use a stratified, well-mixed tank model (TODO: add figure)
+$$\rho V C_p \frac{dT_{l,i}}{dt} = \dot{m} C_p T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a),$$
+for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_f(t, L)$. The assumption here is that the pipes are short or transport from collector to tank is sufficiently fast.
+Note that $T_l$ is the temperature of the same working fluid as in the collector, but we use a different subscript to distinguish between the two systems.
+
 
 ## Numerical Considerations
 
