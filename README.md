@@ -109,6 +109,7 @@ $$T_{l,i}^{n+1} = \Delta t \left( \frac{\dot m}{\rho_e V}(T_{l,i-1}^n - T_{l,i}^
 
 ### Putting it Together
 We have equations of the form
+
 $$\begin{bmatrix}
 
 \end{bmatrix}$$
