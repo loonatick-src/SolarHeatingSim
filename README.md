@@ -51,7 +51,9 @@ $$W\rho_p \delta \frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
 
-$$\rho_fC_{pf}$$
+$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_f V\frac{\partial T_f}{\partial y} = Wh_pf(T - T_f),$$
+
+where $A_t$ is the transverse flow cross section.
 
 
 ## Storage Tank
@@ -64,9 +66,13 @@ This model is based on lecture 29 of [3].
 ## Numerical Considerations
 We use central differences for spatial derivatives in the collector equations.
 
-$$\frac{\partial T}{\partial y} \approx \frac{T_{i+1} - T_{i-1}}{\Delta y},$$
+$$\frac{\partial T_f}{\partial y} \approx \frac{T_{f,i+1} - T_{f,i-1}}{\Delta y} \quad \forall i \in 1,\ldots N_c,$$
 
-where $T_i = T(t, i\Delta y)$.
+where $T_{f,i} = T_f(t, i\Delta y)$, and $N_c$ is the number of degrees of freedom in the discretized mesh. The spatial extremities of the collector
+connect to the storage tank, so we take
+
+$$T_{N_c+1} = T_{l,1}$$
+$$T_{N_0} = T_{l, N_s}$$
 ## Possible Refinements
 
 
