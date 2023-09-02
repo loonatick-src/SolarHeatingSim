@@ -51,12 +51,11 @@ $$W\rho_p \delta \frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
 
-$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_f V\frac{\partial T_f}{\partial y} = Wh_pf(T - T_f),$$
+$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_f V\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
 where $A_t$ is the transverse flow cross section.
 
-
-## Storage Tank
+### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
 $$\rho V C_p \frac{dT_{l,i}}{dt} = \dot{m} C_p T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a),$$
 for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_f(t, L)$. The assumption here is that the pipes are short or transport from collector to tank is sufficiently fast.
@@ -66,13 +65,21 @@ This model is based on lecture 29 of [3].
 ## Numerical Considerations
 We use central differences for spatial derivatives in the collector equations.
 
-$$\frac{\partial T_f}{\partial y} \approx \frac{T_{f,i+1} - T_{f,i-1}}{\Delta y} \quad \forall i \in 1,\ldots N_c,$$
+$$\frac{\partial T_f}{\partial y} \approx \frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} \quad \forall i \in 1,\ldots N_c,$$
 
 where $T_{f,i} = T_f(t, i\Delta y)$, and $N_c$ is the number of degrees of freedom in the discretized mesh. The spatial extremities of the collector
 connect to the storage tank, so we take
 
 $$T_{N_c+1} = T_{l,1}$$
-$$T_{N_0} = T_{l, N_s}$$
+
+$$T_{N_0} = T_{l, N_s}.$$
+
+The semidiscretized equations are then
+### Plate
+$$W\rho_p \delta \frac{d T_{p,i}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
+### Fluid in collector
+$$\rho_fA_{\text{t}}C_{pf}\frac{d T_{f,i}}{d t} + \rho_f A_{\text{t}} C_f V\frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_pf(T_p - T_f),$$
+
 ## Possible Refinements
 
 
