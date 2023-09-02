@@ -94,6 +94,11 @@ finite difference scheme for temporal derivatives that results in an implicit sc
 a nonlinear solver because of the radiative term. Alternatively we could neglect the radiative term and use
 a linear solve instead.
 
+The FTCS scheme then results in the following discretized forms.
+#### Plate
+
+
+
 ## Possible Refinements
 
 
