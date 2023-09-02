@@ -94,6 +94,14 @@ finite difference scheme for temporal derivatives that results in an implicit sc
 a nonlinear solver because of the radiative term. Alternatively we could neglect the radiative term and use
 a linear solve instead.
 
+The FTCS scheme then results in the following discretized forms.
+#### Plate
+$$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p \delta}\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha ((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)$$
+#### Fluid in collector
+#### Fluid in storage tank
+
+
+
 ## Possible Refinements
 
 
