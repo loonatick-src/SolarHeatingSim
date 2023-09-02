@@ -42,11 +42,11 @@ We have the following processes
 - Convective transfer to fluid, $\propto  T_p - T_f$ (Newton's law of cooling)
 - Convective loss to atmosphere, $\propto T_p - T_a$ (Newton's law of cooling)
 
-$$\rho_p \delta \frac{\partial T_p}{\partial t} = S - h_{pf}(T_p - T_f) - h_{pa}(T_p - T_a) - \alpha(T_p^4 - T_{\text{sky}}^4)$$
+$$\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = S - h_{pf}(T_p - T_f) - h_{pa}(T_p - T_a) - \alpha(T_p^4 - T_{\text{sky}}^4)$$
 
 where $\alpha$ is a constant that includes the Stefan-Boltzmann constant, emissivities etc. This equation equation models heat transfer rate per unit area of the collector. Since we assume no dynamics along the width of the collector, we multiply the equation by the width $W$ of the collector to get the dynamics along the length of the conductor ($T_p = T_p(t, y)$).
 
-$$W\rho_p \delta \frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_{pa}(T_p - T_a) - W\alpha(T_p^4 - T_{\text{sky}}^4)$$
+$$W\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_{pa}(T_p - T_a) - W\alpha(T_p^4 - T_{\text{sky}}^4)$$
 
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
@@ -76,7 +76,7 @@ $$T_{N_0} = T_{l, N_s}.$$
 
 The semidiscretized equations are then
 ### Plate
-$$W\rho_p \delta \frac{d T_{p,i}}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
+$$W\rho_p \delta C_{pp}\frac{d T_{p,i}}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
 ### Fluid in collector
 
 $$\rho_fA_{\text{t}}C_{pf}\frac{d T_{f,i}}{d t} + \rho_f A_{\text{t}} C_{pf} V\frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i}), \quad \forall i \in 1,\ldots N_c$$
@@ -96,7 +96,7 @@ a linear solve instead.
 
 The FTCS scheme then results in the following discretized forms.
 #### Plate
-$$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p \delta}\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha \left((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)\right) + T_{p,i}^n$$
+$$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p C_{pp}\delta}\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha \left((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)\right) + T_{p,i}^n$$
 
 $\forall i \in 1,\ldots N_c$, $n \in 0,\ldots$ till convergence.
 #### Fluid in collector

@@ -32,5 +32,5 @@ struct SWHSModel{T}
 end
 
 function semidiscretize(model::SWHSModel; Nc = 100)
-    Δy = model.L / Nc
+    
 end
