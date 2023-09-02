@@ -96,10 +96,11 @@ a linear solve instead.
 
 The FTCS scheme then results in the following discretized forms.
 #### Plate
-$$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p \delta}\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha \left((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)\right)$$
+$$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p \delta}\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha \left((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)\right) + T_{p,i}^n$$
 
 $\forall i \in 1,\ldots N_c$, $n \in 0,\ldots$ till convergence.
 #### Fluid in collector
+T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_t C_{pf}(T_{p,i}^n - T_{f,i}^n) - \frac{T_{f,i+1}^n - T_{f,i-1}^n}{2\Delta y}}\right) + T_{f,i}^n
 #### Fluid in storage tank
 
 
