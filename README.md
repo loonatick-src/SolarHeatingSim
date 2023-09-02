@@ -107,6 +107,12 @@ $\forall i \in 1,\ldots N_c$ and $j \in 1,\ldots$ till convergence.
 #### Fluid in storage tank
 $$T_{l,i}^{n+1} = \Delta t \left( \frac{\dot m}{\rho_e V}(T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{\rho_e V C_{pe}}(T_{l,i}^n - T_a)  \right) + T_{l,i}^n$$
 
+### Putting it Together
+We have equations of the form
+$$\begin{bmatrix}
+
+\end{bmatrix}$$
+
 
 
 ## Possible Refinements
