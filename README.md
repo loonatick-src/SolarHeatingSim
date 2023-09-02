@@ -100,7 +100,7 @@ $$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p \delta}\left(S - h_{pf}(T_{p,i}^n - T_{
 
 $\forall i \in 1,\ldots N_c$, $n \in 0,\ldots$ till convergence.
 #### Fluid in collector
-T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_t C_{pf}(T_{p,i}^n - T_{f,i}^n) - \frac{T_{f,i+1}^n - T_{f,i-1}^n}{2\Delta y}}\right) + T_{f,i}^n
+$$T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_t C_{pf}(T_{p,i}^n - T_{f,i}^n) - \frac{T_{f,i+1}^n - T_{f,i-1}^n}{2\Delta y}}\right) + T_{f,i}^n$$
 #### Fluid in storage tank
 
 
