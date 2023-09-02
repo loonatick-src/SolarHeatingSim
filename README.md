@@ -10,6 +10,30 @@ We make the following assumptions and simplifications
 - The work done by the pump is completely balanced by e.g. the changes in potential energy in the storage tank and riser tubes, so it does not appear in the balance equations
 - Radial temperature of the fluid is not modelled - assume an overall mean temperature across the cross section
 
+## Model Parameters
+```julia
+struct SWHSModel{T}
+    S::T    # radiation flux
+    Ta::T   # ambient temperature
+    T∞::T   # sky temperature
+    δ::T    # plate thickness
+    W::T    # plate width
+    L::T    # plate length
+    Cpl::T  # specific heat of water
+    Cpp::T  # specific heat of plate
+    Cpt::T  # specific heat of tank
+    ρl::T   # density of water
+    ρp::T   # plate denisty
+    ρt::T   # density of tank walls
+    Vt::T   # volume of each stratified tank layer
+    ρAv::T  # mass flow rate of water
+    Ut::T   # loss coefficient (storage tank)
+    Up::T   # loss coefficient (collector plate)
+    hpf::T  # plate-fluid heat transfer coefficient
+    Acs::T  # fluid flow cross section area
+end
+```
+
 ## Collector
 Heat transfer between plate and fluid modelled as convection using Newton's law of cooling [1].
 ### Plate
