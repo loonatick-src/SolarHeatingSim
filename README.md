@@ -57,7 +57,7 @@ where $A_t$ is the transverse flow cross section.
 
 ### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
-$$\rho_e V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a),$$
+$$\rho_e V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} (T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a),$$
 for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_f(t, L)$. The assumption here is that the pipes are short or transport from collector to tank is sufficiently fast.
 Note that $T_l$ is the temperature of the same working fluid as in the collector, but we use a different subscript to distinguish between the two systems.
 This model is based on lecture 29 of [3].
@@ -105,7 +105,7 @@ $$T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_t C_{pf}}(T_{p,i}^n - T
 $\forall i \in 1,\ldots N_c$ and $j \in 1,\ldots$ till convergence.
 
 #### Fluid in storage tank
-$$T_{l,i}^{n+1} = \Delta t \left( \frac{\dot m}{\rho_e V}(T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{\rho V C_{pe}}(T_{l,i}^n - T_a)  \right) + T_{l,i}^n$$
+$$T_{l,i}^{n+1} = \Delta t \left( \frac{\dot m}{\rho_e V}(T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{\rho_e V C_{pe}}(T_{l,i}^n - T_a)  \right) + T_{l,i}^n$$
 
 
 
