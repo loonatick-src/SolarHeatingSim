@@ -76,7 +76,7 @@ $$T_{N_0} = T_{l, N_s}.$$
 
 The semidiscretized equations are then
 ### Plate
-$$W\rho_p \delta \frac{d T_{p,i}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
+$$W\rho_p \delta \frac{d T_{p,i}}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
 ### Fluid in collector
 $$\rho_fA_{\text{t}}C_{pf}\frac{d T_{f,i}}{d t} + \rho_f A_{\text{t}} C_f V\frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_pf(T_p - T_f),$$
 
