@@ -51,13 +51,13 @@ $$W\rho_p \delta \frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
 
-$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_f V\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
+$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_{pf} V\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
 where $A_t$ is the transverse flow cross section.
 
 ### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
-$$\rho V C_p \frac{dT_{l,i}}{dt} = \dot{m} C_p T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a),$$
+$$\rho_e V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a),$$
 for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_f(t, L)$. The assumption here is that the pipes are short or transport from collector to tank is sufficiently fast.
 Note that $T_l$ is the temperature of the same working fluid as in the collector, but we use a different subscript to distinguish between the two systems.
 This model is based on lecture 29 of [3].
@@ -79,12 +79,12 @@ The semidiscretized equations are then
 $$W\rho_p \delta \frac{d T_{p,i}}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
 ### Fluid in collector
 
-$$\rho_fA_{\text{t}}C_{pf}\frac{d T_{f,i}}{d t} + \rho_f A_{\text{t}} C_f V\frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i}), \quad \forall i \in 1,\ldots N_c$$
+$$\rho_fA_{\text{t}}C_{pf}\frac{d T_{f,i}}{d t} + \rho_f A_{\text{t}} C_{pf} V\frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i}), \quad \forall i \in 1,\ldots N_c$$
 with $T_{f,N_c+1} = T_{l,1}$ and $T_{f,0} = T_{l,N_s}$.
 
 ### Storage Tank
 
-$$\rho V C_p \frac{dT_{l,i}}{dt} = \dot{m} C_p T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a), \quad \forall i \in 1,\ldots N_s$$
+$$\rho V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a), \quad \forall i \in 1,\ldots N_s$$
 with $T_{l,0} = T_{f,N_c}$.
 
 ### Full discretization
@@ -105,7 +105,7 @@ $$T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_t C_{pf}}(T_{p,i}^n - T
 $\forall i \in 1,\ldots N_c$ and $j \in 1,\ldots$ till convergence.
 
 #### Fluid in storage tank
-$$T_{l,i}^{n+1} = \Delta t \left( \frac{\dot m}{\rho V}(T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{\rho V C_p}(T_{l,i}^n - T_a)  \right) + T_{l,i}^n$$
+$$T_{l,i}^{n+1} = \Delta t \left( \frac{\dot m}{\rho_e V}(T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{\rho V C_{pe}}(T_{l,i}^n - T_a)  \right) + T_{l,i}^n$$
 
 
 
