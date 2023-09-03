@@ -43,11 +43,10 @@ struct SWHSProblem{T}
     Nc::Int
     c1::T
     c2::T
+    c3::T
+    c4::T
     Tf0::T
     Tp0::T
-    buf1::Vector{T}
-    buf2::Vector{T}
-
     function SWHSProblem(model::SWHSModel; Nc = 100, Δt = 0.1, Tf0 = 290.0, Tp0 = 300.0)
         T = value_type(model)
         @unpack Cpp, ρp, δ, L, Nc, Ns = model
@@ -55,19 +54,50 @@ struct SWHSProblem{T}
         Δy = L / Nc
         c1 = Cpp * ρp * δ
         c2 = W*hpf/(ρf * Ac * Cpl)
+        c3 = ρAv / (ρt*Vt)
+        c4 = hta * A/(ρt * Vt * Cpt)
         N = 2Nc + model.Ns
-        buf1 = Vector{T}(undef, N)
-        buf2 = similar(buf1)
-        buf1[begin:begin+Nc-1] .= Tp0
-        buf1[Nc:end] = Tf0
-        new{Float64}(Δy, Δt, Nc, c1, c2, Tf0, Tp0, buf1, buf2)
+        new{Float64}(Δy, Δt, Nc, c1, c2, c3, c4, Tf0, Tp0)
     end
 end
 
 function step!(timeseries_data, prob::SWHSProblem, i)
-    # TODO
+    Tprev = @view timeseries_data[:,i-1]
+    Tcurr = @view timeseries_data[:,i]
+    Tp_prev = @view Tprev[begin:begin+Nc-1]
+    Tp_curr = @view Tcurr[begin:begin+Nc-1]
+    @assert length(Tp_prev) == Nc
+    Tf_prev = @view Tprev[Nc+1:2Nc]
+    Tf_curr = @view Tcurr[Nc+1:2Nc]
+    @assert length(Tf_prev) == Nc
+    Tl_prev = @view Tprev[2Nc+1:end]
+    Tl_curr = @view Tcurr[2Nc+1:end]
+    @assert length(Tl_prev) == m.Ns
+    Tl_prev_sl = @view Tprev[2Nc:end-1]     # `_sl` ≡ shifted left
+    @assert length(Tl_prev_sl) == length(Tl_prev)
+    Tf_prev_sl = @view Tprev[Nc:2Nc-1]
+    Tf_prev_sr = @view Tprev[Nc+2:2Nc+1]
+    @assert length(Tf_prev_sl) == length(Tf_prev_sr) == lenght(Tf_prev)
+    # you should see a one-to-one correspondence with the fully discretized equations in the README.md
+
+    @unpack Δt, Δy, Nc, c1, c2 = prob
+    m = prob.model
+    @unpack S, hpf, hpa, Ta, T∞ = m
+    Tp_curr .= Tp_prev .+ (Δt / c1) .* (S .- hpf .* (Tp_prev .- Tf_prev) - hpa .* (Tp_prev .- Ta) - α .* (Tp_prev.^4 - T∞.^4))
+    Tf_curr .= Tf_prev .+ Δt .* (c2 .* (Tp_prev .- Tf_prev) - (Tf_prev_sr .- Tf_prev_sl) ./ 2Δy)
+    Tl_curr .= Tl_prev .+ Δt .* (c3 .* (Tl_prev_sl .- Tl_prev) .- c4 .* (Tl_prev .- Ta))
+    timeseries_data
 end
 
 function solve(prob::SWHSProblem; maxiter = prob.Nc^2)
-    # TODO
+    @unpack model, Nc, Tp0, Tf0 = prob
+    @unpack Ns = model
+    N = 2Nc + Ns
+    timeseries_data = zeros(N,maxiter)
+    timeseries_data[begin:begin+Nc-1,:] .= Tp0
+    timeseries_data[Nc+1:end] .= Tf0
+    for i in 2:maxiter
+        step!(timeseries_data, prob, i)
+    end
+    timeseries_data
 end

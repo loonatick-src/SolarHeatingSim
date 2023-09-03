@@ -1,4 +1,7 @@
+name = "Simulation"
+authors = ["Chaitanya Kumar <chaitanyak28771@gmail.com> and contributors"]
+version = "0.1-DEV"
+
 [deps]
-OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
