@@ -51,7 +51,7 @@ $$W\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f)
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
 
-$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_{pf} V\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
+$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
 where $A_t$ is the transverse flow cross section.
 
