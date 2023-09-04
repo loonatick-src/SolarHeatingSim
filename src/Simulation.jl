@@ -4,70 +4,28 @@ using UnPack
 
 export SWHSModel, SWHSProblem, solve
 
-struct SWHSModel{T}
-    S::T    # radiation flux
-    Ta::T   # ambient temperature
-    T∞::T   # sky temperature
-    α::T    # radiation coefficient
-    δ::T    # plate thickness
-    W::T    # plate width
-    L::T    # plate length
-    Cpl::T  # specific heat of water
-    Cpp::T  # specific heat of plate
-    Cpt::T  # specific heat of tank
-    ρl::T   # density of water
-    ρp::T   # plate denisty
-    ρt::T   # density of tank walls
-    Vt::T   # volume of each stratified tank layer
-    Ac::T   # transverse cross section area of risers
-    ρAv::T  # mass flow rate of water
-    hta::T   # loss coefficient (storage tank)
-    hpf::T  # plate-fluid heat transfer coefficient
-    hpa::T  # plate-atmosphere transfer coefficient
-    Ns::Int # stratifications count
-
-    # ctor with default arguments
-    function SWHSModel(;S      = 800.0,
-                       Ta      = 300,
-                       T∞      = 295,
-                       α       = 5.5e-8,
-                       δ       = 0.1,
-                       W       = 1.0,
-                       L       = 2.0,
-                       Cpl     = 4.2e3,
-                       Cpp     = 450.0,
-                       Cpt     = 5000.0,
-                       ρl      = 1.0e3,
-                       ρp      = 8.0e3,
-                       ρt      = 1.5e3,
-                       Vt      = 10.0,
-                       Ac      = 0.6,
-                       ρAv     = 800.0,
-                       hta     = 500.0,
-                       hpf     = 1000.0,
-                       hpa     = 100.0,
-                       Ns::Int = 10)
-        new{Float64}(S,
-                     Ta,
-                     T∞,
-                     α,
-                     δ,
-                     W,
-                     L,
-                     Cpl,
-                     Cpp,
-                     Cpt,
-                     ρl,
-                     ρp,
-                     ρt,
-                     Vt,
-                     Ac,
-                     ρAv,
-                     hta,
-                     hpf,
-                     hpa,
-                     Ns)
-    end
+@kwdef struct SWHSModel{T}
+    ρp::T  = 8.0e3    # density of plate
+    δ::T   = 0.1      # plate thickness
+    W::T   = 1.0      # plate width
+    L::T   = 2.0      # plate length
+    Cpp::T = 450.0    # specific heat capacity of plate
+    S::T   = 800.0    # radiation flux
+    hpf::T = 1000.0   # heat transfer coefficient (plate and working fluid)
+    hpa::T = 100.0    # heat transfer coefficient (plate and atmosphere)
+    Ta::T  = 300.0    # ambient temperature
+    T∞::T  = 295.0    # sky temperature
+    α::T   = 5.5e-8   # radiation coefficient
+    ρf::T  = 1.0e3    # working fluid density
+    Af::T  = 0.6      # transverse cross section area of risers
+    Cpf::T = 4.2e3    # specific heat capacity of working fluid
+    mdot::T = 0.5 * Af * ρf  # mass flow rate (assuming 0.5m per s in risers
+    ρe::T  = 1.5e3    # effective density (tank + wokring fluid)
+    Cpe::T = 5000.0   # effective specific heat of tank + working fluid
+    V::T   = 10.0     # volume of each stratified tank layer
+    A::T   = 5.0      # contact area between tank and atmosphere per stratification
+    hta::T = 500.0    # loss coefficient (storage tank)
+    Ns::Int= 10       # stratifications count for tank
 end
 
 value_type(::SWHSModel{T}) where T = T
@@ -81,18 +39,20 @@ struct SWHSProblem{T}
     c2::T
     c3::T
     c4::T
+    c4::T
+    c5::T
     Tf0::T
     Tp0::T
     function SWHSProblem(model::SWHSModel; Nc = 100, Δt = 0.1, Tf0 = 290.0, Tp0 = 300.0)
         T = value_type(model)
-        @unpack Cpp, ρp, δ, L, Ns, ρAv, Vt, Cpt = model
-        @unpack W, hpf, ρl, Ac, Cpl, ρt, hta = model
-        A = 4.0  # TODO: put this in the model
+        @unpack Cpp, ρp, δ, L, Ns, mdot, V, Cpe = model
+        @unpack W, hpf, ρf, Af, Cpl, ρt, hta = model
         Δy = L / Nc
-        c1 = Cpp * ρp * δ
-        c2 = W*hpf/(ρl * Ac * Cpl)
-        c3 = ρAv / (ρt*Vt)
-        c4 = hta * A/(ρt * Vt * Cpt)
+        c1 = 1/(Cpp * ρp * δ)
+        c2 = 1/(ρf * Af)
+        c3 = W*hpf/Cpf
+        c4 = 1/(ρe*V)
+        c5 = hta * A / Cpe
         N = 2Nc + model.Ns
         new{Float64}(model, Δy, Δt, Nc, c1, c2, c3, c4, Tf0, Tp0)
     end
