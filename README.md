@@ -53,7 +53,9 @@ We model heat transfer through and by the fluid using a 1D advection equation wi
 
 $$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
-where $A_t$ is the transverse flow cross section.
+where $A_t$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_{\text{t}} v_f = \dot m$ to be constant.
+
+$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \dot{m} C_{pf}\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
 ### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
