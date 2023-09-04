@@ -12,25 +12,28 @@ We make the following assumptions and simplifications
 
 ## Model Parameters
 ```julia
-struct SWHSModel{T}
-    S::T    # radiation flux
-    Ta::T   # ambient temperature
-    T∞::T   # sky temperature
-    δ::T    # plate thickness
-    W::T    # plate width
-    L::T    # plate length
-    Cpl::T  # specific heat of water
-    Cpp::T  # specific heat of plate
-    Cpt::T  # specific heat of tank
-    ρl::T   # density of water
-    ρp::T   # plate denisty
-    ρt::T   # density of tank walls
-    Vt::T   # volume of each stratified tank layer
-    ρAv::T  # mass flow rate of water
-    Ut::T   # loss coefficient (storage tank)
-    Up::T   # loss coefficient (collector plate)
-    hpf::T  # plate-fluid heat transfer coefficient
-    Acs::T  # fluid flow cross section area
+@kwdef struct SWHSModel{T}
+    ρp::T  = 8.0e3    # density of plate
+    δ::T   = 0.1      # plate thickness
+    W::T   = 1.0      # plate width
+    L::T   = 2.0      # plate length
+    Cpp::T = 450.0    # specific heat capacity of plate
+    S::T   = 800.0    # radiation flux
+    hpf::T = 1000.0   # heat transfer coefficient (plate and working fluid)
+    hpa::T = 100.0    # heat transfer coefficient (plate and atmosphere)
+    Ta::T  = 300.0    # ambient temperature
+    T∞::T  = 295.0    # sky temperature
+    α::T   = 5.5e-8   # radiation coefficient
+    ρf::T  = 1.0e3    # working fluid density
+    Af::T  = 0.6      # transverse cross section area of risers
+    Cpf::T = 4.2e3    # specific heat capacity of working fluid
+    mdot::T = 0.5 * Af * ρf  # mass flow rate (assuming 0.5m per s in risers
+    ρe::T  = 1.5e3    # effective density (tank + wokring fluid)
+    Cpe::T = 5000.0   # effective specific heat of tank + working fluid
+    V::T   = 10.0     # volume of each stratified tank layer
+    A::T   = 5.0      # contact area between tank and atmosphere per stratification
+    hta::T = 500.0    # loss coefficient (storage tank)
+    Ns::Int= 10       # stratifications count for tank
 end
 ```
 ## Subsystems
@@ -51,7 +54,7 @@ $$W\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f)
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
 
-$$\rho_fA_c C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_c C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
+$$\rho_fA_f C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_f C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_{pf}(T_p - T_f),$$
 
 where $A_c$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_c v_f = \dot m$ to be constant.
 
@@ -78,15 +81,15 @@ $$T_{N_0} = T_{l, N_s}.$$
 
 The semidiscretized equations are then
 ### Plate
-$$W\rho_p \delta C_{pp}\frac{d T_{p,i}}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
+$$\rho_p \delta C_{pp}\frac{d T_{p,i}}{d t} = S - h_{pf}(T_{p,i} - T_{f,i}) - h_{pa}(T_{p,i} - T_a) - \alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
 ### Fluid in collector
 
-$$\rho_fA_{c}C_{pf}\frac{d T_{f,i}}{d t} + \dot{m}C_{pf} \frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i}), \quad \forall i \in 1,\ldots N_c$$
+$$\rho_fA_{f}C_{pf}\frac{d T_{f,i}}{d t} + \dot{m}C_{pf} \frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i}), \quad \forall i \in 1,\ldots N_c$$
 with $T_{f,N_c+1} = T_{l,1}$ and $T_{f,0} = T_{l,N_s}$.
 
 ### Storage Tank
 
-$$\rho V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} (T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a), \quad \forall i \in 1,\ldots N_s$$
+$$\rho_e V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} (T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a), \quad \forall i \in 1,\ldots N_s$$
 with $T_{l,0} = T_{f,N_c}$.
 
 ### Full discretization
@@ -98,22 +101,22 @@ a linear solve instead.
 
 The FTCS scheme then results in the following discretized forms.
 #### Plate
-$$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p C_{pp}\delta}\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha \left((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)\right) + T_{p,i}^n$$
+$$T_{p,i}^{n+1} = T_{p,i}^n + \frac{\Delta t}{\rho_p C_{pp}\delta}\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha \left((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)\right)$$
 
 $\forall i \in 1,\ldots N_c$, $n \in 0,\ldots$ till convergence.
 #### Fluid in collector
-$$T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_c C_{pf}}(T_{p,i}^n - T_{f,i}^n) - \frac{\dot m}{\rho_f A_c}\frac{T_{f,i+1}^n - T_{f,i-1}^n}{2\Delta y}\right) + T_{f,i}^n$$
+$$T_{f,i}^{n+1} = T_{f,i}^n + \frac{\Delta t}{\rho_f A_f} \left( \frac{Wh_{pf}}{C_{pf}}(T_{p,i}^n - T_{f,i}^n) - \dot m\frac{T_{f,i+1}^n - T_{f,i-1}^n}{2\Delta y}\right)$$
 
 $\forall i \in 1,\ldots N_c$ and $j \in 1,\ldots$ till convergence.
 
 #### Fluid in storage tank
-$$T_{l,i}^{n+1} = \Delta t \left( \frac{\dot m}{\rho_e V}(T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{\rho_e V C_{pe}}(T_{l,i}^n - T_a)  \right) + T_{l,i}^n$$
+$$T_{l,i}^{n+1} = T_{l,i}^n + \frac{\Delta t}{\rho_e V} \left( \dot m (T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{C_{pe}}(T_{l,i}^n - T_a)  \right)$$
 
 ### Putting it Together
 We have equations of the form
 
-```math
-\begin{bmatrix}
+
+$$\begin{bmatrix}
 T^{n+1}_{p,1}\\
 T^{n+1}_{p,2}\\
 T^{n+1}_{p,3}\\
@@ -125,10 +128,10 @@ T^{n+1}_{f,2}\\
 T^{n+1}_{f, N_c}\\
 T^{n+1}_{l,1}\\
 T^{n+1}_{l,2}\\
-\vdots
+\vdots\\
 T^{n+1}_{l,N_s}
 \end{bmatrix} = f(\mathbf{T_p}^n, \mathbf{T_f}^n, \mathbf{T_l}^n)
-```
+$$
 
 
 

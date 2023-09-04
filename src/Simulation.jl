@@ -53,7 +53,6 @@ struct SWHSProblem{T}
         c3 = W*hpf/Cpf
         c4 = 1/(ρe*V)
         c5 = hta * A / Cpe
-        N = 2Nc + model.Ns
         new{Float64}(model, Δy, Δt, Nc, c1, c2, c3, c4, Tf0, Tp0)
     end
 end
