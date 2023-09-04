@@ -51,11 +51,11 @@ $$W\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f)
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
 
-$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
+$$\rho_fA_c C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_c C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
-where $A_c$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_{\text{t}} v_f = \dot m$ to be constant.
+where $A_c$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_c v_f = \dot m$ to be constant.
 
-$$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \dot{m} C_{pf}\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
+$$\rho_f A_c C_{pf}\frac{\partial T_f}{\partial t} + \dot{m} C_{pf}\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
 ### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
@@ -81,7 +81,7 @@ The semidiscretized equations are then
 $$W\rho_p \delta C_{pp}\frac{d T_{p,i}}{d t} = WS - Wh_{pf}(T_{p,i} - T_{f,i}) - Wh_{pa}(T_{p,i} - T_a) - W\alpha(T_{p,i}^4 - T_{\text{sky}}^4),\quad \forall i \in 1,\ldots N_c$$
 ### Fluid in collector
 
-$$\rho_fA_{\text{t}}C_{pf}\frac{d T_{f,i}}{d t} + \dot{m}C_{pf} \frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i}), \quad \forall i \in 1,\ldots N_c$$
+$$\rho_fA_{c}C_{pf}\frac{d T_{f,i}}{d t} + \dot{m}C_{pf} \frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i}), \quad \forall i \in 1,\ldots N_c$$
 with $T_{f,N_c+1} = T_{l,1}$ and $T_{f,0} = T_{l,N_s}$.
 
 ### Storage Tank
