@@ -39,23 +39,36 @@ struct SWHSProblem{T}
     c2::T
     c3::T
     c4::T
-    c4::T
     c5::T
     Tf0::T
     Tp0::T
     function SWHSProblem(model::SWHSModel; Nc = 100, Δt = 0.1, Tf0 = 290.0, Tp0 = 300.0)
         T = value_type(model)
         @unpack Cpp, ρp, δ, L, Ns, mdot, V, Cpe = model
-        @unpack W, hpf, ρf, Af, Cpl, ρt, hta = model
+        @unpack W, hpf, ρf, Af, Cpf, ρe, hta, A = model
         Δy = L / Nc
         c1 = 1/(Cpp * ρp * δ)
         c2 = 1/(ρf * Af)
         c3 = W*hpf/Cpf
         c4 = 1/(ρe*V)
         c5 = hta * A / Cpe
-        new{Float64}(model, Δy, Δt, Nc, c1, c2, c3, c4, Tf0, Tp0)
+        new{Float64}(model, Δy, Δt, Nc, c1, c2, c3, c4, c5, Tf0, Tp0)
     end
 end
+
+# function Tp_step(Tp_prev, Tf_prev, model, prob)
+#     @unpack S, hpf, hpa, Ta, T∞, α = model
+#     @unpack c1, Δt = prob
+#     Tp_prev + c1*Δt*(S - hpf * (Tp_prev - Tf_prev) - hpa * (Tp_prev - Ta) - α * (Tp_prev ^4 - T∞^4))
+# end
+
+# function Tf_step(Tf_prev, Tp_prev, Tf_prev_sl, Tf_prev_sr, model, prob)
+#     @unpack mdot = model
+#     @unpack Δt, Δy, c2, c3 = prob
+#     Tf_prev + c2*Δt(c3*(Tp_prev - Tf_prev) - mdot * (Tf_prev_sr - Tf_prev_sl) / (2Δy))
+# end
+
+# function Tt_step(Tt_prev, Tf_prev, )
 
 function step!(timeseries_data, prob::SWHSProblem, i)
     @unpack Δt, Δy, Nc, c1, c2, c3, c4 = prob
@@ -63,25 +76,30 @@ function step!(timeseries_data, prob::SWHSProblem, i)
     @unpack α = m
     Tprev = @view timeseries_data[:,i-1]
     Tcurr = @view timeseries_data[:,i]
+    plate_start = firstindex(Tprev); plate_end = Nc
+    fluid_start = Nc+1; fluid_end = 2Nc
+    tank_start = 2Nc+1; tank_end = lastindex(Tprev)
     Tp_prev = @view Tprev[begin:begin+Nc-1]
     Tp_curr = @view Tcurr[begin:begin+Nc-1]
     @assert length(Tp_prev) == Nc
-    Tf_prev = @view Tprev[Nc+1:2Nc]
-    Tf_curr = @view Tcurr[Nc+1:2Nc]
-    @assert length(Tf_prev) == Nc
+    Tf_prev_full = @view Tprev[Nc+1:2Nc]
+    Tf_prev = @view Tprev[Nc+2:2Nc]
+    Tf_curr = @view Tcurr[Nc+2:2Nc]
+    @assert length(Tf_prev) == Nc-1
     Tl_prev = @view Tprev[2Nc+1:end]
     Tl_curr = @view Tcurr[2Nc+1:end]
     @assert length(Tl_prev) == m.Ns
     Tl_prev_sl = @view Tprev[2Nc:end-1]     # `_sl` ≡ shifted left
     @assert length(Tl_prev_sl) == length(Tl_prev)
-    Tf_prev_sl = @view Tprev[Nc:2Nc-1]
-    Tf_prev_sr = @view Tprev[Nc+2:2Nc+1]
+    Tf_prev_sl = @view Tprev[Nc+1:2Nc-1]
+    Tf_prev_sr = @view Tprev[Nc+3:2Nc+1]
     @assert length(Tf_prev_sl) == length(Tf_prev_sr) == length(Tf_prev)
     # you should see a one-to-one correspondence with the fully discretized equations in the README.md
     @unpack S, hpf, hpa, Ta, T∞ = m
-    Tp_curr .= Tp_prev .+ (Δt / c1) .* (S .- hpf .* (Tp_prev .- Tf_prev) .- hpa .* (Tp_prev .- Ta) .- α .* (Tp_prev.^4 .- T∞.^4))
-    Tf_curr .= Tf_prev .+ Δt .* (c2 .* (Tp_prev .- Tf_prev) - (Tf_prev_sr .- Tf_prev_sl) ./ 2Δy)
+    Tp_curr .= Tp_prev .+ (Δt / c1) .* (S .- hpf .* (Tp_prev .- Tf_prev_full) .- hpa .* (Tp_prev .- Ta) .- α .* (Tp_prev.^4 .- T∞.^4))
+    @views Tf_curr .= Tf_prev .+ Δt .* (c2 .* (Tp_prev[begin+1:end] .- Tf_prev) - (Tf_prev_sr .- Tf_prev_sl) ./ (2Δy))
     Tl_curr .= Tl_prev .+ Δt .* (c3 .* (Tl_prev_sl .- Tl_prev) .- c4 .* (Tl_prev .- Ta))
+    Tcurr[fluid_start] = Tprev[fluid_start] + Δt * (c2 * (Tprev[plate_start] - Tprev[fluid_start]) - (Tprev[fluid_start+1] - Tprev[tank_end]) / (2Δy))
     timeseries_data
 end
 
