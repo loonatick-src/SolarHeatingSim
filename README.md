@@ -86,7 +86,7 @@ with $T_{f,N_c+1} = T_{l,1}$ and $T_{f,0} = T_{l,N_s}$.
 
 ### Storage Tank
 
-$$\rho V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} T_{l,i-1} - T_{l,i} - h_{ta}A(T_{l,i} - T_a), \quad \forall i \in 1,\ldots N_s$$
+$$\rho V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} (T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a), \quad \forall i \in 1,\ldots N_s$$
 with $T_{l,0} = T_{f,N_c}$.
 
 ### Full discretization
