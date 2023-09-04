@@ -53,7 +53,7 @@ We model heat transfer through and by the fluid using a 1D advection equation wi
 
 $$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_{\text{t}} C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
-where $A_t$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_{\text{t}} v_f = \dot m$ to be constant.
+where $A_c$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_{\text{t}} v_f = \dot m$ to be constant.
 
 $$\rho_fA_{\text{t}}C_{pf}\frac{\partial T_f}{\partial t} + \dot{m} C_{pf}\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
@@ -102,7 +102,7 @@ $$T_{p,i}^{n+1} = \frac{\Delta t}{\rho_p C_{pp}\delta}\left(S - h_{pf}(T_{p,i}^n
 
 $\forall i \in 1,\ldots N_c$, $n \in 0,\ldots$ till convergence.
 #### Fluid in collector
-$$T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_t C_{pf}}(T_{p,i}^n - T_{f,i}^n) - \frac{\dot m}{\rho_f A_t}\frac{T_{f,i+1}^n - T_{f,i-1}^n}{2\Delta y}\right) + T_{f,i}^n$$
+$$T_{f,i}^{n+1} = \Delta t\left( \frac{Wh_{pf}}{\rho_f A_c C_{pf}}(T_{p,i}^n - T_{f,i}^n) - \frac{\dot m}{\rho_f A_c}\frac{T_{f,i+1}^n - T_{f,i-1}^n}{2\Delta y}\right) + T_{f,i}^n$$
 
 $\forall i \in 1,\ldots N_c$ and $j \in 1,\ldots$ till convergence.
 
