@@ -162,7 +162,14 @@ $i \in 2,\ldots N_s$
 $$T_{l,i}^{n+1} = T_{l,i}^n + c_4\Delta t \left( \dot m (T_{l,i-1}^n - T_{l,i}^n) - c_5(T_{l,i}^n - T_a)  \right)$$
 - $c_4 = \frac{1}{\rho_e V}$
 - $c_5 = \frac{h_{ta}A}{C_{pe}}$
-## Possible Refinements
+
+## Limitations and Possible Refinements
+
+- **Stability Analysis:** We can perform a e.g. von Neumann stability analysis to pick better values for the step size $\Delta t$ to strike a balance between convergence rate and tolerance while ensuring stability. The explicit scheme used is numerically unstable for larger values of $\Delta t$.
+- **Using Implicit Schemes:** The simulation would benefit from using an implicit scheme such as the Crank-Nicolson method. This would require performing a non-linear solve on every iteration using e.g. a Newton-like method due to the radiative term in the plate equations. Alternatively, we can make do with a linear solve if we neglect losses due to radiation, which could be reasonable since the coefficient $\alpha \sim 1.0e-8$, many orders of magnitude smaller than typical convective coefficients.
+- **A less complex model(?):** For starters I probably should have stuck with something like a lumped element model, if that is possible for thermal systems. Some model design strategies exist, such as modeling a "thermal circuit" with temperature $\equiv$ voltage and heat flux $\equiv$ electric current. This treatment is presented in [6]
+- **A more complex model(?):** Both solar collectors and storage tanks have been modelled with a fair amount of complexity [2,4]. 
+
 
 
 ##  References
@@ -170,3 +177,5 @@ $$T_{l,i}^{n+1} = T_{l,i}^n + c_4\Delta t \left( \dot m (T_{l,i-1}^n - T_{l,i}^n
 - [2] Zeghib, I., & Chaker, A. (2011). Simulation of a solar domestic water heating system. Energy Procedia, 6, 292-301.
 - [3] Kalita, K. (2020). Solar Energy Engineering and Technology [MOOC]. NPTEL. https://onlinecourses.nptel.ac.in/noc20_ph14/preview
 - [4] Al-Tabbakh, A. A. (2022). Numerical transient modeling of a flat plate solar collector. Results in Engineering, 15, 100580
+- [5] Rosales, R. R. (2022) Notes: von Neumann Stability Analysis. [Course Notes] https://math.mit.edu/classes/18.300/Notes/Notes_vNSA.pdf
+- [6] Rowell, D., & Wormley, D. N. (1997). System dynamics: an introduction (Vol. 635). Upper Saddle River: Prentice Hall.
