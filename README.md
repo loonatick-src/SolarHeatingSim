@@ -115,8 +115,8 @@ $$T_{l,i}^{n+1} = T_{l,i}^n + \frac{\Delta t}{\rho_e V} \left( \dot m (T_{l,i-1}
 ### Putting it Together
 We have equations of the form
 
-
-$$\begin{bmatrix}
+```math
+\begin{bmatrix}
 T^{n+1}_{p,1}\\
 T^{n+1}_{p,2}\\
 T^{n+1}_{p,3}\\
@@ -131,7 +131,7 @@ T^{n+1}_{l,2}\\
 \vdots\\
 T^{n+1}_{l,N_s}
 \end{bmatrix} = f(\mathbf{T_p}^n, \mathbf{T_f}^n, \mathbf{T_l}^n)
-$$
+```
 
 
 
