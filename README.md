@@ -56,7 +56,7 @@ We model heat transfer through and by the fluid using a 1D advection equation wi
 
 $$\rho_fA_f C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_f C_{pf} v_f\frac{\partial T_f}{\partial y} = Wh_{pf}(T_p - T_f),$$
 
-where $A_c$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_c v_f = \dot m$ to be constant.
+where $A_f$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_f v_f = \dot m$ to be constant.
 
 $$\rho_f A_c C_{pf}\frac{\partial T_f}{\partial t} + \dot{m} C_{pf}\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 
@@ -88,9 +88,22 @@ $$\rho_fA_{f}C_{pf}\frac{d T_{f,i}}{d t} + \dot{m}C_{pf} \frac{T_{f,i+1} - T_{f,
 with $T_{f,N_c+1} = T_{l,1}$ and $T_{f,0} = T_{l,N_s}$.
 
 ### Storage Tank
-
 $$\rho_e V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} (T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a), \quad \forall i \in 1,\ldots N_s$$
 with $T_{l,0} = T_{f,N_c}$.
+### The "Edge Cases"
+To be explicit, we write enumerate the collector fluid and storage tank equations explicitly.
+#### Fluid in Collector
+$i = 1$
+$$\rho_f A_f C_{pf} \frac{dT_{f,1}}{dt} + \dot m C_{pf}\frac{T_{f,2} - T_{l,N_s}}{2\Delta y} = Wh_{pf}(T_{p,1} - T_{f,1})$$
+$i \in 2, \ldots N_c-1$
+$$\rho_f A_f C_{pf} \frac{dT_{f,i}}{dt} + \dot m C_{pf}\frac{T_{f,i+1} - T_{l,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i})$$
+$i = N_c$
+$$\rho_f A_f C_{pf} \frac{dT_{f,N_c}}{dt} + \dot m C_{pf}\frac{T_{l,0} - T_{f,N_c-1}}{2\Delta y} = Wh_{pf}(T_{p,N_c} - T_{f,N_c})$$
+#### Storage Tank
+$i = 1$
+$$\rho_e V C_{pe} \frac{dT_{l,1}}{dt} = \dot{m} C_{pe} (T_{f,N_c} - T_{l,1}) - h_{ta}A(T_{l,1} - T_a)$$ 
+$i \in 2,\ldots N_s$
+$$\rho_e V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} (T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a)$$
 
 ### Full discretization
 For simplicity we choose to use forward difference approximation for the time derivatives.
@@ -112,11 +125,9 @@ $\forall i \in 1,\ldots N_c$ and $j \in 1,\ldots$ till convergence.
 #### Fluid in storage tank
 $$T_{l,i}^{n+1} = T_{l,i}^n + \frac{\Delta t}{\rho_e V} \left( \dot m (T_{l,i-1}^n - T_{l,i}^n) - \frac{h_{ta}A}{C_{pe}}(T_{l,i}^n - T_a)  \right)$$
 
-### Putting it Together
+### Final Equations
 We have equations of the form
-
-```math
-\begin{bmatrix}
+$$\begin{bmatrix}
 T^{n+1}_{p,1}\\
 T^{n+1}_{p,2}\\
 T^{n+1}_{p,3}\\
@@ -131,10 +142,26 @@ T^{n+1}_{l,2}\\
 \vdots\\
 T^{n+1}_{l,N_s}
 \end{bmatrix} = f(\mathbf{T_p}^n, \mathbf{T_f}^n, \mathbf{T_l}^n)
-```
-
-
-
+$$
+#### Plate
+$$T_{p,i}^{n+1} = T_{p,i}^n + c_1\Delta t\left(S - h_{pf}(T_{p,i}^n - T_{f,i}^n) - h_{pa}(T_{p,i}^n - T_a) - \alpha \left((T_{p,i}^n)^4 - T_{\text{sky}}^4\right)\right)$$
+- $c_1 = \frac{1}{\rho_p C_{pp}\delta}$
+#### Fluid in Collector
+$i=1$
+$$T_{f,1}^{n+1} = T_{f,1}^n + c_2\Delta t \left( c_3(T_{p,1}^n - T_{f,1}^n) - \dot m\frac{T_{f,2}^n - T_{l,N_s}^n}{2\Delta y}\right)$$
+$i \in 2,\ldots N_c-1$
+$$T_{f,i}^{n+1} = T_{f,i}^n + c_2\Delta t \left( c_3(T_{p,i}^n - T_{f,i}^n) - \dot m\frac{T_{f,i+1}^n - T_{l,i-1}^n}{2\Delta y}\right)$$
+$i = N_c$
+$$T_{f,N_c}^{n+1} = T_{f,N_c}^n + c_2\Delta t \left( c_3(T_{p,N_c}^n - T_{f,N_c}^n) - \dot m\frac{T_{l,1}^n - T_{f,N_c-1}^n}{2\Delta y}\right)$$
+- $c_2 = \frac{1}{\rho_f A_f}$
+- $c_3 = \frac{Wh_{pf}}{C_{pf}}$
+#### Storage Tank
+$i=1$
+$$T_{l,1}^{n+1} = T_{l,1}^n + c_4\Delta t \left( \dot m (T_{f,N_c}^n - T_{l,1}^n) -c_5(T_{l,1}^n - T_a)  \right)$$
+$i \in 2,\ldots N_s$
+$$T_{l,i}^{n+1} = T_{l,i}^n + c_4\Delta t \left( \dot m (T_{l,i-1}^n - T_{l,i}^n) - c_5(T_{l,i}^n - T_a)  \right)$$
+- $c_4 = \frac{1}{\rho_e V}$
+- $c_5 = \frac{h_{ta}A}{C_{pe}}$
 ## Possible Refinements
 
 
