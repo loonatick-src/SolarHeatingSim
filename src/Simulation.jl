@@ -64,6 +64,14 @@ struct SWHSProblem{T}
     end
 end
 
+function reset_problem!(prob::SWHSProblem; Tf0 = 290.0, Tp0 = 300.0)
+    @unpack Nc, Ns = prob.model
+    @unpack u, du = prob
+    u[1:Nc] .= Tp0
+    u[Nc+1:end] .=   Tf0
+    prob
+end
+
 function f!(du, u, prob::SWHSProblem)
     @unpack ρf, Af, Cpf, mdot, W, hpf, Ns, Nc, hpa, T∞ = prob.model
     @unpack Cpp, δ, ρp, ρe, Cpe, V, A, hta, S, Ta, α, L = prob.model
@@ -86,11 +94,12 @@ function f!(du, u, prob::SWHSProblem)
     Tf_m = @view u[fluid_begin+1:fluid_end-1]
     Tp_m = @view u[plate_begin+1:plate_end-1]
     @assert length(Tf_m) == length(Tp_m) == Nc-2
-    dTf_m = du[fluid_begin+1:fluid_end-1]
-    Tf_sl = u[fluid_begin:fluid_end-2]
-    Tf_sr = u[fluid_begin+2:fluid_end]
-    Tl_r = u[tank_begin+1:end]
-    Tl_l = u[tank_begin:end-1]
+    dTf_m = @view du[fluid_begin+1:fluid_end-1]
+    Tf_sl = @view u[fluid_begin:fluid_end-2]
+    Tf_sr = @view u[fluid_begin+2:fluid_end]
+    Tl_r = @view u[tank_begin+1:end]
+    dTl_r = @view du[tank_begin+1:end]
+    Tl_l = @view u[tank_begin:end-1]
 
     @assert length(Tl) == Ns
 
@@ -112,7 +121,7 @@ function f!(du, u, prob::SWHSProblem)
 
     # compute dTₗ/dt
     dTl[begin] = ρe_V_Cpe_inv * (mdot_Cpe * (Tf[end] - Tl[begin]) - hta_A*(Tl[begin] - Ta))
-    @. Tl_r = ρe_V_Cpe_inv * (mdot_Cpe * (Tl_r - Tl_l) - hta_A*(Tl_r - Ta))
+    @. dTl_r = ρe_V_Cpe_inv * (mdot_Cpe * (Tl_r - Tl_l) - hta_A*(Tl_r - Ta))
     
     du
 end
@@ -121,13 +130,14 @@ function forward_euler(f!, tspan, dt, prob::SWHSProblem)
     @unpack u, du = prob
     t = first(tspan)
     while t < last(tspan)
-        u .+= f!(du, u, prob)
+        f!(du, u, prob)
+        u .+= du
         t += dt
     end
     u
 end
 
-function RK4(f!, prob::SWHSProblem, tspan, dt)
+function RK4(f!, tspan, dt, prob::SWHSProblem)
     @unpack u, du = prob
     T = eltype(u)
     k1 = zeros(T, length(u))
@@ -146,74 +156,97 @@ function RK4(f!, prob::SWHSProblem, tspan, dt)
     u
 end
 
-
-
-function step!(timeseries_data, prob::SWHSProblem, i)
-    @unpack Δt, Δy, Nc, c1, c2, c3, c4, c5 = prob
-    @unpack Ns, S, mdot, hpf, hpa, hta, Ta, T∞, α = prob.model
-    Tcurr = @view timeseries_data[:,i]
-    Tprev = @view timeseries_data[:,i-1]
-    
-    plate_begin = firstindex(Tcurr)
-    plate_end = Nc
-    fluid_begin = plate_end+1
-    fluid_end = 2Nc
-    tank_begin = fluid_end + 1
-    tank_end = lastindex(Tcurr)
-    
-    Tp_curr = @view Tcurr[plate_begin:plate_end]
-    Tp_prev = @view Tprev[plate_begin:plate_end]
-    Tf_curr = @view Tcurr[fluid_begin:fluid_end]
-    Tf_prev = @view Tprev[fluid_begin:fluid_end]
-    Tl_curr = @view Tcurr[tank_begin:tank_end]
-    Tl_prev = @view Tprev[tank_begin:tank_end]
-    @assert length(Tp_curr) == length(Tf_curr) == Nc
-    @assert length(Tl_curr) == Ns
-
-    c1Δt = c1*Δt
-    c2Δt = c2*Δt
-    c4Δt = c4*Δt
-    
-    # update plate temperature
-    Tp_curr .= Tp_prev .+ c1Δt .* (S .- hpf .* (Tp_prev .- Tf_prev) .- hpa .* (Tp_prev .- Ta) .- α .* (Tp_prev .^ 4 .- (T∞^4)))
-    # update collector fluid temperature
-    Tf_curr[begin] = Tf_prev[begin] + c2Δt *(c3*(Tp_prev[begin] - Tf_prev[begin]) - mdot* (Tf_prev[begin+1] - Tl_prev[end])/(2Δy))
-    Tf_curr_m = @view Tf_curr[begin+1:end-1]  # exclude terminal entries
-    Tf_prev_m = @view Tf_prev[begin+1:end-1]
-    Tp_curr_m = @view Tp_curr[begin+1:end-1]
-    Tp_prev_m = @view Tp_prev[begin+1:end-1]
-    Tf_prev_m_sl = @view Tf_prev[begin:end-2]  # `_sl` ≡ shifted left
-    Tf_prev_m_sr = @view Tf_prev[begin+2:end]  # `_sr` ≡ shifted right
-    Tf_curr_m .= Tf_prev_m .+ c2Δt .* (c3.*(Tp_prev_m .- Tf_prev_m) .- mdot .* (Tf_prev_m_sr .- Tf_prev_m_sl)/(2Δy))
-    Tf_curr[end] = Tf_prev[end] + c2Δt*(c3*(Tp_prev[end] - Tf_prev[end]) - mdot * (Tl_prev[end] - Tf_prev[end-1])/(2Δy))
-    # update tank temperature
-    Tl_curr[begin] = Tl_prev[begin] + c4Δt * (mdot * (Tf_prev[end] - Tl_prev[begin]) - c5*(Tl_prev[begin] - Ta))
-    Tl_curr_m = @view Tl_curr[begin+1:end]
-    Tl_prev_m = @view Tl_prev[begin+1:end]
-    Tl_prev_m_sl = @view Tl_prev[begin:end-1]
-    Tl_curr_m .= Tl_prev_m .+ c4Δt .* (mdot .* (Tl_prev_m_sl .- Tl_prev_m) - c5 .* (Tl_prev_m .- Ta))
-    timeseries_data
+function get_plate_view(prob::SWHSProblem)
+    @unpack u = prob
+    @unpack Nc, Ns = prob.model
+    plate_begin = firstindex(u)
+    plate_end = plate_begin + Nc - 1
+    @view u[plate_begin:plate_end]
 end
 
-function solve(prob::SWHSProblem; T=0.1)
-    @unpack model, Nc, Tp0, Tf0, Δt = prob
-    @unpack Ns = model
-    maxiter = convert(Int, T ÷ Δt)
-    A = 4.0  # TODO: put this in the model
-    N = 2Nc + Ns
-    timeseries_data = zeros(N,maxiter)
-    timeseries_data[begin:begin+Nc-1,:] .= Tp0
-    timeseries_data[Nc+1:end] .= Tf0
-    for i in 2:maxiter
-        step!(timeseries_data, prob, i)
-    end
-    timeseries_data
+function get_fluid_view(prob::SWHSProblem)
+    @unpack u = prob
+    @unpack Nc, Ns = prob.model
+    fluid_begin = firstindex(u) + Nc
+    fluid_end = fluid_begin + Nc - 1
+    @view u[fluid_begin:fluid_end]
 end
 
-function main()
-    model = SWHSModel()
-    prob = SWHSProblem(model)
-    timeseries_data = solve(prob)
+function get_tank_view(prob::SWHSProblem)
+    @unpack u = prob
+    @unpack Nc, Ns = prob.model
+    tank_begin = firstindex(u) + 2Nc
+    tank_end = lastindex(u)
+    @view u[tank_begin:tank_end]
 end
+
+
+# function step!(timeseries_data, prob::SWHSProblem, i)
+#     @unpack Δt, Δy, Nc, c1, c2, c3, c4, c5 = prob
+#     @unpack Ns, S, mdot, hpf, hpa, hta, Ta, T∞, α = prob.model
+#     Tcurr = @view timeseries_data[:,i]
+#     Tprev = @view timeseries_data[:,i-1]
+    
+#     plate_begin = firstindex(Tcurr)
+#     plate_end = Nc
+#     fluid_begin = plate_end+1
+#     fluid_end = 2Nc
+#     tank_begin = fluid_end + 1
+#     tank_end = lastindex(Tcurr)
+    
+#     Tp_curr = @view Tcurr[plate_begin:plate_end]
+#     Tp_prev = @view Tprev[plate_begin:plate_end]
+#     Tf_curr = @view Tcurr[fluid_begin:fluid_end]
+#     Tf_prev = @view Tprev[fluid_begin:fluid_end]
+#     Tl_curr = @view Tcurr[tank_begin:tank_end]
+#     Tl_prev = @view Tprev[tank_begin:tank_end]
+#     @assert length(Tp_curr) == length(Tf_curr) == Nc
+#     @assert length(Tl_curr) == Ns
+
+#     c1Δt = c1*Δt
+#     c2Δt = c2*Δt
+#     c4Δt = c4*Δt
+    
+#     # update plate temperature
+#     Tp_curr .= Tp_prev .+ c1Δt .* (S .- hpf .* (Tp_prev .- Tf_prev) .- hpa .* (Tp_prev .- Ta) .- α .* (Tp_prev .^ 4 .- (T∞^4)))
+#     # update collector fluid temperature
+#     Tf_curr[begin] = Tf_prev[begin] + c2Δt *(c3*(Tp_prev[begin] - Tf_prev[begin]) - mdot* (Tf_prev[begin+1] - Tl_prev[end])/(2Δy))
+#     Tf_curr_m = @view Tf_curr[begin+1:end-1]  # exclude terminal entries
+#     Tf_prev_m = @view Tf_prev[begin+1:end-1]
+#     Tp_curr_m = @view Tp_curr[begin+1:end-1]
+#     Tp_prev_m = @view Tp_prev[begin+1:end-1]
+#     Tf_prev_m_sl = @view Tf_prev[begin:end-2]  # `_sl` ≡ shifted left
+#     Tf_prev_m_sr = @view Tf_prev[begin+2:end]  # `_sr` ≡ shifted right
+#     Tf_curr_m .= Tf_prev_m .+ c2Δt .* (c3.*(Tp_prev_m .- Tf_prev_m) .- mdot .* (Tf_prev_m_sr .- Tf_prev_m_sl)/(2Δy))
+#     Tf_curr[end] = Tf_prev[end] + c2Δt*(c3*(Tp_prev[end] - Tf_prev[end]) - mdot * (Tl_prev[end] - Tf_prev[end-1])/(2Δy))
+#     # update tank temperature
+#     Tl_curr[begin] = Tl_prev[begin] + c4Δt * (mdot * (Tf_prev[end] - Tl_prev[begin]) - c5*(Tl_prev[begin] - Ta))
+#     Tl_curr_m = @view Tl_curr[begin+1:end]
+#     Tl_prev_m = @view Tl_prev[begin+1:end]
+#     Tl_prev_m_sl = @view Tl_prev[begin:end-1]
+#     Tl_curr_m .= Tl_prev_m .+ c4Δt .* (mdot .* (Tl_prev_m_sl .- Tl_prev_m) - c5 .* (Tl_prev_m .- Ta))
+#     timeseries_data
+# end
+
+# function solve(prob::SWHSProblem; T=0.1)
+#     @unpack model, Nc, Tp0, Tf0, Δt = prob
+#     @unpack Ns = model
+#     maxiter = convert(Int, T ÷ Δt)
+#     A = 4.0  # TODO: put this in the model
+#     N = 2Nc + Ns
+#     timeseries_data = zeros(N,maxiter)
+#     timeseries_data[begin:begin+Nc-1,:] .= Tp0
+#     timeseries_data[Nc+1:end] .= Tf0
+#     for i in 2:maxiter
+#         step!(timeseries_data, prob, i)
+#     end
+#     timeseries_data
+# end
+
+# function main()
+#     model = SWHSModel()
+#     prob = SWHSProblem(model)
+#     timeseries_data = solve(prob)
+# end
 
 end # module
