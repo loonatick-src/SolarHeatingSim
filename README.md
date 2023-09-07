@@ -96,7 +96,7 @@ To be explicit, we write enumerate the collector fluid and storage tank equation
 $i = 1$
 $$\rho_f A_f C_{pf} \frac{dT_{f,1}}{dt} + \dot m C_{pf}\frac{T_{f,2} - T_{l,N_s}}{2\Delta y} = Wh_{pf}(T_{p,1} - T_{f,1})$$
 $i \in 2, \ldots N_c-1$
-$$\rho_f A_f C_{pf} \frac{dT_{f,i}}{dt} + \dot m C_{pf}\frac{T_{f,i+1} - T_{l,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i})$$
+$$\rho_f A_f C_{pf} \frac{dT_{f,i}}{dt} + \dot m C_{pf}\frac{T_{f,i+1} - T_{f,i-1}}{2\Delta y} = Wh_{pf}(T_{p,i} - T_{f,i})$$
 $i = N_c$
 $$\rho_f A_f C_{pf} \frac{dT_{f,N_c}}{dt} + \dot m C_{pf}\frac{T_{l,0} - T_{f,N_c-1}}{2\Delta y} = Wh_{pf}(T_{p,N_c} - T_{f,N_c})$$
 #### Storage Tank

@@ -2,7 +2,8 @@ module Simulation
 
 using UnPack
 
-export SWHSModel, SWHSProblem, solve
+export SWHSModel, SWHSProblem #, solve
+export forward_euler, RK4, f!
 
 @kwdef struct SWHSModel{T}
     ρp::T  = 8.0e3    # density of plate
@@ -26,35 +27,126 @@ export SWHSModel, SWHSProblem, solve
     A::T   = 5.0      # contact area between tank and atmosphere per stratification
     hta::T = 500.0    # loss coefficient (storage tank)
     Ns::Int= 10       # stratifications count for tank
+    Nc::Int= 100     # number of points in the discretized mesh of collector
 end
 
 value_type(::SWHSModel{T}) where T = T
 
 struct SWHSProblem{T}
     model::SWHSModel{T}
-    Δy::T
-    Δt::T
-    Nc::Int
-    c1::T
-    c2::T
-    c3::T
-    c4::T
-    c5::T
-    Tf0::T
-    Tp0::T
-    function SWHSProblem(model::SWHSModel; Nc = 100, Δt = 0.1, Tf0 = 290.0, Tp0 = 300.0)
+    u::Vector{T}
+    du::Vector{T}
+    # Δy::T
+    # Δt::T  
+    # c1::T
+    # c2::T
+    # c3::T
+    # c4::T
+    # c5::T
+    # Tf0::T
+    # Tp0::T
+    function SWHSProblem(model::SWHSModel; Δt = 0.001, Tf0 = 290.0, Tp0 = 300.0)
         T = value_type(model)
-        @unpack Cpp, ρp, δ, L, Ns, mdot, V, Cpe = model
+        @unpack Cpp, ρp, δ, L, Ns, mdot, V, Cpe, Nc = model
         @unpack W, hpf, ρf, Af, Cpf, ρe, hta, A = model
-        Δy = L / Nc
-        c1 = 1/(Cpp * ρp * δ)
-        c2 = 1/(ρf * Af)
-        c3 = W*hpf/Cpf
-        c4 = 1/(ρe*V)
-        c5 = hta * A / Cpe
-        new{Float64}(model, Δy, Δt, Nc, c1, c2, c3, c4, c5, Tf0, Tp0)
+        N = 2Nc + Ns
+        u = zeros(T, N)
+        du = zeros(T, N)
+        u[1:Nc] .= Tp0
+        u[Nc+1:end] .= Tf0
+        # Δy = L / Nc
+        # c1 = 1/(Cpp * ρp * δ)
+        # c2 = 1/(ρf * Af)
+        # c3 = W*hpf/Cpf
+        # c4 = 1/(ρe*V)
+        # c5 = hta * A / Cpe
+        new{Float64}(model, u, du) #, Δy)
     end
 end
+
+function f!(du, u, prob::SWHSProblem)
+    @unpack ρf, Af, Cpf, mdot, W, hpf, Ns, Nc, hpa, T∞ = prob.model
+    @unpack Cpp, δ, ρp, ρe, Cpe, V, A, hta, S, Ta, α, L = prob.model
+    Δy = L / Nc
+    # TODO: consider precomputing these values and storing in a cache struct
+    plate_begin = firstindex(u)
+    plate_end = Nc
+    fluid_begin = plate_end+1
+    fluid_end = 2Nc
+    tank_begin = fluid_end + 1
+    tank_end = lastindex(u)
+
+    Tp = @view u[plate_begin:plate_end]
+    dTp = @view du[plate_begin:plate_end]
+    Tf = @view u[fluid_begin:fluid_end]
+    dTf = @view du[fluid_begin:fluid_end]
+    @assert length(Tp) == length(Tf) == Nc
+    Tl = @view u[tank_begin:tank_end];
+    dTl = @view du[tank_begin:tank_end]
+    Tf_m = @view u[fluid_begin+1:fluid_end-1]
+    Tp_m = @view u[plate_begin+1:plate_end-1]
+    @assert length(Tf_m) == length(Tp_m) == Nc-2
+    dTf_m = du[fluid_begin+1:fluid_end-1]
+    Tf_sl = u[fluid_begin:fluid_end-2]
+    Tf_sr = u[fluid_begin+2:fluid_end]
+    Tl_r = u[tank_begin+1:end]
+    Tl_l = u[tank_begin:end-1]
+
+    @assert length(Tl) == Ns
+
+    ρp_δ_Cpp_inv = 1/(ρp*δ*Cpp)
+    ρf_Af_Cpf_inv = 1/(ρf * Af * Cpf)
+    mdot_Cpf = mdot * Cpf
+    W_hpf = W*hpf
+    ρe_V_Cpe_inv = 1/(ρe * V * Cpe)
+    mdot_Cpe = mdot * Cpe
+    hta_A = hta * A
+    
+    # compute dTₚ/dt
+    @. dTp = ρp_δ_Cpp_inv * (S - hpf * (Tp - Tf) - hpa * (Tp - Ta) - α * (Tp^4 - T∞^4))
+    # compute dTf/dt
+    # i = 1
+    dTf[begin] = ρf_Af_Cpf_inv * (W_hpf * (Tp[begin] - Tf[begin]) - mdot_Cpf * (Tf[begin+1] - Tl[end])/(2Δy))
+    @. dTf_m = ρf_Af_Cpf_inv * (W_hpf * (Tp_m - Tf_m) - mdot_Cpf * (Tf_sr - Tf_sl)/(2Δy))
+    dTf[end] = ρf_Af_Cpf_inv * (W_hpf * (Tp[end] - Tf[end]) - mdot_Cpf * (Tl[begin] - Tf[end-1])/(2Δy))
+
+    # compute dTₗ/dt
+    dTl[begin] = ρe_V_Cpe_inv * (mdot_Cpe * (Tf[end] - Tl[begin]) - hta_A*(Tl[begin] - Ta))
+    @. Tl_r = ρe_V_Cpe_inv * (mdot_Cpe * (Tl_r - Tl_l) - hta_A*(Tl_r - Ta))
+    
+    du
+end
+
+function forward_euler(f!, tspan, dt, prob::SWHSProblem)
+    @unpack u, du = prob
+    t = first(tspan)
+    while t < last(tspan)
+        u .+= f!(du, u, prob)
+        t += dt
+    end
+    u
+end
+
+function RK4(f!, prob::SWHSProblem, tspan, dt)
+    @unpack u, du = prob
+    T = eltype(u)
+    k1 = zeros(T, length(u))
+    k2 = zeros(T, length(u))
+    k3 = zeros(T, length(u))
+    k4 = zeros(T, length(u))
+    t = first(tspan)
+    while t < last(tspan)
+        f!(k1, u, prob)
+        f!(k2, u .+ dt .* k1 ./ 2, prob)
+        f!(k3, u .+ dt .* k2 ./ 2, prob)
+        f!(k4, u .+ dt .* k3, prob)
+        @. u += dt/6 * (k1 + 2k2 + 2k3 + k4)
+        t += dt
+    end
+    u
+end
+
+
 
 function step!(timeseries_data, prob::SWHSProblem, i)
     @unpack Δt, Δy, Nc, c1, c2, c3, c4, c5 = prob
@@ -103,9 +195,10 @@ function step!(timeseries_data, prob::SWHSProblem, i)
     timeseries_data
 end
 
-function solve(prob::SWHSProblem; maxiter = prob.Nc^2)
-    @unpack model, Nc, Tp0, Tf0 = prob
+function solve(prob::SWHSProblem; T=0.1)
+    @unpack model, Nc, Tp0, Tf0, Δt = prob
     @unpack Ns = model
+    maxiter = convert(Int, T ÷ Δt)
     A = 4.0  # TODO: put this in the model
     N = 2Nc + Ns
     timeseries_data = zeros(N,maxiter)
