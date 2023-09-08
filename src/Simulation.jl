@@ -4,6 +4,11 @@ using UnPack
 
 export SWHSModel, SWHSProblem #, solve
 export forward_euler, RK4, f!
+export get_plate_view, get_fluid_view, get_tank_view
+export pde_equations
+
+include("model.jl")
+
 
 @kwdef struct SWHSModel{T}
     ρp::T  = 8.0e3    # density of plate
@@ -18,7 +23,7 @@ export forward_euler, RK4, f!
     T∞::T  = 295.0    # sky temperature
     α::T   = 5.5e-8   # radiation coefficient
     ρf::T  = 1.0e3    # working fluid density
-    Af::T  = 0.6      # transverse cross section area of risers
+    Af::T  = W*L*0.2      # transverse cross section area of risers
     Cpf::T = 4.2e3    # specific heat capacity of working fluid
     mdot::T = 0.5 * Af * ρf  # mass flow rate (assuming 0.5m per s in risers
     ρe::T  = 1.5e3    # effective density (tank + wokring fluid)
@@ -63,6 +68,27 @@ struct SWHSProblem{T}
         new{Float64}(model, u, du) #, Δy)
     end
 end
+
+# struct GenericSWHSProblem{T,BufType<:AbstractArray}
+#     model::SWHSModel{T}
+#     u::BufType
+#     du::BufType
+#     function SWHSProblem(model::SWHSModel, u::BufType, du::BufType; Δt = 0.001, Tf0 = 290.0, Tp0 = 300.0) where {BufType <: AbstractArray}
+#         T = value_type(model)
+#         @unpack Cpp, ρp, δ, L, Ns, mdot, V, Cpe, Nc = model
+#         @unpack W, hpf, ρf, Af, Cpf, ρe, hta, A = model
+#         N = 2Nc + Ns
+#         u[1:Nc] .= Tp0
+#         u[Nc+1:end] .= Tf0
+#         # Δy = L / Nc
+#         # c1 = 1/(Cpp * ρp * δ)
+#         # c2 = 1/(ρf * Af)
+#         # c3 = W*hpf/Cpf
+#         # c4 = 1/(ρe*V)
+#         # c5 = hta * A / Cpe
+#         new{Float64}(model, u, du) #, Δy)
+#     end
+# end
 
 function reset_problem!(prob::SWHSProblem; Tf0 = 290.0, Tp0 = 300.0)
     @unpack Nc, Ns = prob.model
@@ -248,5 +274,7 @@ end
 #     prob = SWHSProblem(model)
 #     timeseries_data = solve(prob)
 # end
+
+include("example.jl")
 
 end # module
