@@ -91,16 +91,17 @@ A(y, A1, A2, L, H)  = (1-σ(y,L,1))*A1 + σ(y,L,1)*A2 # y < L ? A1 : A2
 
 function pde_equations(tmin, tmax, Tf0, Tp0, dy; Lval=2.0, Hval=5.0)
     @parameters y t
-    @parameters L H S δ Cpp hpf kp hpa Ta T∞ ρf Cpf mdot Af At ρp W C hta
+    @parameters L H S δ Cpp hpf kp hpa Ta T∞ ρf Cpf mdot Af At ρp W C hta kp
     @variables Tp(..) Tf(..)
     Tp_init(y,t) = Tp0
     Tf_init(y,t) = Tf0
     Dt = Differential(t)
     Dy = Differential(y)
+    Dyy = Differential(y)^2
     domains = [t ∈ Interval(tmin, tmax),
                y ∈ Interval(0, Lval+Hval)]
     eq = [
-        Dt(Tp(y,t)) ~ 1/(ρp*δ*Cpp) * (S - hpf*(Tp(y,t) - Tf(y,t)) - hpa*(Tp(y,t) - Ta) #=- α*(Tp(y,t)^4 - T∞^4)=#),
+        Dt(Tp(y,t)) ~ 1/(ρp*δ*Cpp) * (S + kp*δ*Dyy(Tp(y,t))  - hpf*(Tp(y,t) - Tf(y,t)) - hpa*(Tp(y,t) - Ta) #=- α*(Tp(y,t)^4 - T∞^4)=#),
         Dt(Tf(y,t)) ~ 1/(ρf*Cpf*A(y,L,H,Af,At))*(fluid_f(y,Tp(y,t), Tf(y,t), L, H, W, hpf, C, hta, Ta) - mdot * Cpf * Dy(Tf(y,t)))
     ]
     bcs = [
@@ -112,7 +113,7 @@ function pde_equations(tmin, tmax, Tf0, Tp0, dy; Lval=2.0, Hval=5.0)
                               [y,t], [Tp(y,t), Tf(y,t)],
                               [ρp => 8.0e3, δ => 0.1, W => 1.0,
                                L => Lval, H => Hval, Cpp => 450.0,
-                               S => 800.0, hpf => 1000.0,
+                               S => 800.0, hpf => 1000.0, kp=>50,
                                hpa => 100.0, Ta => 300, T∞ => 295,
                                ρf => 1.0e3, Af => 1, Cpf=>4.2e3,
                                mdot=>500, At=>12.5, C=>12.5, hta=>500.0])
