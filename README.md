@@ -157,8 +157,12 @@ T_{p,N_c}
 \end{bmatrix}
 ```
 Where we estimated the second derivative at the boundaries using the Neumann conditions.
-$$\frac{T_{p,N_c+1} - T_{p,N_c-1}}{2\Delta y} = 0 \implies T_{p,N_c+1} = T_{p,N_c-1}$$
-$$\implies T''_{p,N_c} \approx \frac{T_{p,N_c+1} + T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y ^2} = \frac{2T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y^2}$$
+```math
+\frac{T_{p,N_c+1} - T_{p,N_c-1}}{2\Delta y} = 0 \implies T_{p,N_c+1} = T_{p,N_c-1}
+```
+```math
+\implies T''_{p,N_c} \approx \frac{T_{p,N_c+1} + T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y ^2} = \frac{2T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y^2}
+```
 and similarly for $T''_{p,1}$.
 ### Fluid in Collector
 We have the boundary conditions $T_{f,1} = T_d \implies T'_{f,1} = T'_d$, and we can take $T_{f,N_c+1} = T_r$. Therefore, we have
