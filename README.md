@@ -44,13 +44,17 @@ We have the following processes
 - Solar radiation, $\propto T_p^4 - T_{\text{sky}}^4$ (Stefan-Boltzmann law)
 - Convective transfer to fluid, $\propto  T_p - T_f$ (Newton's law of cooling)
 - Convective loss to atmosphere, $\propto T_p - T_a$ (Newton's law of cooling)
+$$\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = S + \delta k_p \frac{\partial^2 T_p}{\partial y^2}- h_{pf}(T_p - T_f) - h_{pa}(T_p - T_a) - \alpha(T_p^4 - T_{\text{sky}}^4)$$
 
-$$\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = S - h_{pf}(T_p - T_f) - h_{pa}(T_p - T_a) - \alpha(T_p^4 - T_{\text{sky}}^4)$$
-
-where $\alpha$ is a constant that includes the Stefan-Boltzmann constant, emissivities etc. This equation equation models heat transfer rate per unit area of the collector. Since we assume no dynamics along the width of the collector, we multiply the equation by the width $W$ of the collector to get the dynamics along the length of the conductor ($T_p = T_p(t, y)$).
+where $\alpha$ is a constant that includes the Stefan-Boltzmann constant, emissivities etc. This equation equation models heat transfer rate per unit area of the collector. Since we assume no dynamics along the width of the collector, we multiply the equation by the width $W$ of the collector to get the effective dynamics along the length of the conductor ($T_p = T_p(t, y)$). 
 
 $$W\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_{pa}(T_p - T_a) - W\alpha(T_p^4 - T_{\text{sky}}^4)$$
+Note that we only need the width factor to get the source term for the 1D advection equation used for simulating  the working fluid in the collector.
 
+$$\frac{\partial T_p}{\partial t} = \frac{1}{\rho_p \delta C_{pp}}\left( S + \delta k_p \frac{\partial^2 T_p}{\partial y^2}- h_{pf}(T_p - T_f) - h_{pa}(T_p - T_a) - \alpha(T_p^4 - T_{\text{sky}}^4) \right)$$
+
+We use Neumann boundary conditions:
+$$\frac{\partial T_p}{\partial T_y} = 0\quad \text{at }y = 0, y = L$$
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
 
@@ -59,13 +63,133 @@ $$\rho_fA_f C_{pf}\frac{\partial T_f}{\partial t} + \rho_f A_f C_{pf} v_f\frac{\
 where $A_f$ is the transverse flow cross section. Note that mass conservation requires $\rho_f A_f v_f = \dot m$ to be constant.
 
 $$\rho_f A_c C_{pf}\frac{\partial T_f}{\partial t} + \dot{m} C_{pf}\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
-
+$$\implies \frac{\partial T_f}{\partial t} = \frac{1}{\rho_f A_c C_{pf}}\left(W h_{pf}(T_p - T_f) - \dot m C_{pf} \frac{\partial T_p}{\partial y}\right)$$
 ### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
-$$\rho_e V C_{pe} \frac{dT_{l,i}}{dt} = \dot{m} C_{pe} (T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a),$$
+$$(\rho C)_t V \frac{dT_{l,i}}{dt} = \dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a),$$
+$$\implies \frac{dT_{l,i}}{dt} = \frac{1}{(\rho C)_t V}\left(\dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a)\right)$$
 for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_f(t, L)$. The assumption here is that the pipes are short or transport from collector to tank is sufficiently fast.
 Note that $T_l$ is the temperature of the same working fluid as in the collector, but we use a different subscript to distinguish between the two systems.
 This model is based on lecture 29 of [3].
+
+### Connecting Pipes
+We assume that the temperature drop across the connecting pipes is small and model them as single nodes, as done in (TODO: cite). Denote $\text{d}$ as the down comer pipe that leads flow into the collector, and $\text{r}$ as the up-riser pipe leading from the collector to the tank. $T_d$ = $T_f(0)$ and $T_r = T_{l,0}$.
+$$(mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)$$
+$$(mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)$$
+## Numerical Considerations
+$$\frac{\partial T}{\partial y} \approx \frac{T_{i+1} - T_{i-1}}{2\Delta y} \quad \forall i \in 1,\ldots N_c,$$
+
+where $T_{i} = T(t, i\Delta y)$, and $N_c$ is the number of degrees of freedom in the discretized mesh.   We also need to take into account the boundary conditions.
+### Plate
+Consider first $T_p$.
+
+```math
+\begin{bmatrix}
+T'_{p,1}\\
+T_{p,2}'\\
+T_{p,3}'\\
+\vdots\\
+T_{p,N_c-1}'\\
+T_{p,N_c}'\end{bmatrix} \approx \frac{1}{2\Delta y}\begin{bmatrix}
+0 & 0 & 0  &       & &\\
+1 & 0 & -1 &       & &\\
+  & 1 & 0 & -1     & &\\
+  &   &   &        \ddots & &\\
+  &   &   &        1      & 0 & -1\\
+  &   &   &        0      & 0 & 0  
+\end{bmatrix}
+\begin{bmatrix}
+T_{p,1}\\
+T_{p,2}\\
+T_{p,3}\\
+\vdots\\
+T_{p,N_c-1}\\
+T_{p,N_c}
+\end{bmatrix}
+```
+Where the top and bottom rows are zero because of the Neumann conditions on the plate boundaries. We need the second derivative for the conductive term as well.
+
+```math
+\begin{bmatrix}
+T_{p,1}''\\
+T_{p,2}''\\
+T_{p,3}''\\
+\vdots\\
+T_{p,N_c-1}''\\
+T_{p,N_c}''
+\end{bmatrix} \approx \frac{1}{\Delta y ^2}
+\begin{bmatrix}
+-2 & 2  & 0\\
+1  & -2 & 1\\
+   & 1  & -2 &  1\\
+   &    &    &  \ddots &\\
+   &    &    &         & 1 & -2 & 1\\
+   &    &    &         &   &  2 & -2
+\end{bmatrix}
+\begin{bmatrix}
+T_{p,1}\\
+T_{p,2}\\
+T_{p,3}\\
+\vdots\\
+T_{p,N_c-1}\\
+T_{p,N_c}
+\end{bmatrix}
+```
+Where we estimated the second derivative at the boundaries using the Neumann conditions.
+$$\frac{T_{p,N_c+1} - T_{p,N_c-1}}{2\Delta y} = 0 \implies T_{p,N_c+1} = T_{p,N_c-1}$$
+$$\implies T''_{p,N_c} \approx \frac{T_{p,N_c+1} + T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y ^2} = \frac{2T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y^2}$$
+and similarly for $T''_{p,1}$.
+### Fluid in Collector
+We have the boundary conditions $T_{f,1} = T_d \implies T'_{f,1} = T'_d$, and we can take $T_{f,N_c+1} = T_r$. Therefore, we have
+```math
+\begin{bmatrix}
+T'_{f,1}\\
+T'_{f,2}\\
+T'_{f,3}\\
+\vdots\\
+T'_{f,N_c-1}\\
+T'_{f,N_c}
+\end{bmatrix} \approx \frac{1}{2\Delta y}
+\begin{bmatrix}
+0 & 0\\
+1 & 0 & -1\\
+  & 1 & 0 & -1\\
+  &   &   &  \ddots\\
+  &   &   &        & 1 & 0 & -1\\
+  &   &   &        &   & -1 & 0\\
+\end{bmatrix}
+\begin{bmatrix}
+T_{f,1}\\
+T_{f,2}\\
+T_{f,3}\\
+\vdots\\
+T_{f,N_c-1}\\
+T_{f,N_c}
+\end{bmatrix}
++
+\begin{bmatrix}
+T'_d\\
+0\\
+0\\
+\vdots\\
+0\\
+\frac{T_r}{2\Delta y}
+\end{bmatrix}
+```
+
+### Putting it all Together
+**TODO**
+
+##  References
+- [1] Incropera, Frank P., et al. Fundamentals of heat and mass transfer. Vol. 6. New York: Wiley, 1996.
+- [2] Zeghib, I., & Chaker, A. (2011). Simulation of a solar domestic water heating system. Energy Procedia, 6, 292-301.
+- [3] Kalita, K. (2020). Solar Energy Engineering and Technology [MOOC]. NPTEL. https://onlinecourses.nptel.ac.in/noc20_ph14/preview
+- [4] Al-Tabbakh, A. A. (2022). Numerical transient modeling of a flat plate solar collector. Results in Engineering, 15, 100580
+- [5] Rosales, R. R. (2022) Notes: von Neumann Stability Analysis. [Course Notes] https://math.mit.edu/classes/18.300/Notes/Notes_vNSA.pdf
+- [6] Rowell, D., & Wormley, D. N. (1997). System dynamics: an introduction (Vol. 635). Upper Saddle River: Prentice Hall.
+
+# Appendix
+(Everything beyond this point is one of the earlier attempts that missed a few details. Included for... proof of work? Not sure might delete later)
 
 ## Numerical Considerations
 We use central differences for spatial derivatives in the collector equations.
