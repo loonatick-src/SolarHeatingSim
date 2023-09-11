@@ -1,4 +1,6 @@
 # Rudimentary Solar Water Heating System Simulation
+**So, I have stumbled quite a bit and now this model is the final model that I am going with. Final equations to be documented completely. I will complete this implementation in a day and ship the first version. If life calls on me to continue working on this, I'll flesh it out.**
+
 We make the following assumptions and simplifications
 - Flat plate collector with parallel riser tubes
 - Temperature variations along the width of the solar collector (i.e. perpendicular to fluid flow direction) are not modelled, assume uniform mean temperature along with.
