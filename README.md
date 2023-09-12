@@ -277,7 +277,7 @@ So that
 \dot{\overline{T}}_f = \frac{1}{\rho_f A_c C_{pf}}\left(W h_{pf}(\overline{T}_p - \overline  T_f) - \dot m C_{pf} (D_f \overline T_f + d_f)\right)
 ```
 ```math
-\dot{\overline{T}}_l = \frac{1}{(\rho C)_l}(D_l \overline{T}_l + d_l) - h_{ta}A(\overline T_l - T_a)
+\dot{\overline{T}}_l = \frac{1}{(\rho C)_l}\left((D_l \overline{T}_l + d_l) - h_{ta}A(\overline T_l - T_a)\right)
 ```
 ```math
 (mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)
