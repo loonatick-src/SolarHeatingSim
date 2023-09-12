@@ -4,7 +4,7 @@ using UnPack
 using LinearAlgebra: dot, mul!
 
 export SWHSModel, SWHSProblem
-export forward_euler, runge_kutta_4, f!
+export forward_euler, runge_kutta_4, f!, sciml_f!
 export get_plate_view, get_fluid_view, get_tank_view
 export pde_equations
 
@@ -133,6 +133,9 @@ function f!(du, u, cache::SWHSCache)
     du[r_idx] = (1/mCr) * (mdot_Cpf*(u_f[end] - Tr) - π_dr_hra*(Tr - Ta))
     du[dc_idx] = (1/mCd) * (mdot_Cpf*(u_l[end] - Td) - π_dd_hda*(Td - Ta))
 end
+
+# SciML compatible API: t is required even if unused
+sciml_f!(du, u, cache, t) = f!(du, u, cache)
 
 function reset_problem!(prob::SWHSProblem; Tf0 = 290.0, Tp0 = 300.0)
     @unpack Nc, Ns = prob.model

@@ -35,3 +35,4 @@ function tank_matrix(T::Type, Ns)
     Tridiagonal(dl, d, du)
 end
 tank_matrix(Ns) = tank_matrix(Float64, Ns)
+
