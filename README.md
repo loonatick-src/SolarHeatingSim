@@ -71,19 +71,27 @@ $$\implies \frac{\partial T_f}{\partial t} = \frac{1}{\rho_f A_c C_{pf}}\left(W 
 ### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
 
-$$(\rho C)_l V \frac{dT_{l,i}}{dt} = \dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a),$$
-$$\implies \frac{dT_{l,i}}{dt} = \frac{1}{(\rho C)_l V}\left(\dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a)\right)$$
+```math
+(\rho C)_l V \frac{dT_{l,i}}{dt} = \dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a)
+```
+
+```math
+\implies \frac{dT_{l,i}}{dt} = \frac{1}{(\rho C)_l V}\left(\dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a)\right)
+```
 
 for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_r(t)$, where $T_t$ is the temperature of the up-riser pipe node connecting the collector outlet to the tank inlet (more on the connecting pipes later).
 Note that $T_l$ is the temperature of the same working fluid as in the collector, but we use a different subscript to distinguish between the two systems.
-This model is based on lecture 29 of [3], and a more detailed model is developed in (**TODO: cite**).
+This model is based on lecture 29 of [3], and a more detailed model is developed in [7].
 We can write the system of equations for the storage tank in vector form
 
-$$\dot{\overline{T}}_l = \frac{1}{(\rho C)_l}(D_l \overline{T}_l + d_l) - h_{ta}A(\overline T_l - T_a)$$
+```math
+\dot{\overline{T}}_l = \frac{1}{(\rho C)_l}(D_l \overline{T}_l + d_l) - h_{ta}A(\overline T_l - T_a)
+```
 
 where
 
-$$D_l\overline{T}_l + d_l = \begin{bmatrix}
+```math
+D_l\overline{T}_l + d_l = \begin{bmatrix}
 	-1 \\
 	1 & -1\\
 	  &  1 & -1\\
@@ -110,23 +118,30 @@ T_{l,N_s}
 	0\\
 	0
 \end{bmatrix}
-$$
+```
 
 ### Connecting Pipes
 We assume that the temperature drop across the connecting pipes is small and model them as single nodes between the collector and the tank, similar to as done in (TODO: cite). Denote $\text{d}$ as the down comer pipe that leads flow into the collector, and $\text{r}$ as the up-riser pipe leading from the collector to the tank. $T_r = T_{l,0}$, and $T_d$ will be used in a similar manner with the collector when discretizing the equations.
 
-$$(mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)$$
-$$(mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)$$
+```math
+(mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)
+```
+```math
+(mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)
+```
 
 ## Numerical Considerations
 
-$$\frac{\partial T}{\partial y} \approx \frac{T_{i+1} - T_{i-1}}{2\Delta y} \quad \forall i \in 1,\ldots N_c,$$
+```math
+\frac{\partial T}{\partial y} \approx \frac{T_{i+1} - T_{i-1}}{2\Delta y} \quad \forall i \in 1,\ldots N_c
+```
 
 where $T_{i} = T(t, i\Delta y)$, and $N_c$ is the number of degrees of freedom in the discretized mesh.   We also need to take into account the boundary conditions.
 ### Plate
 Consider first $T_p$.
 
-$$\begin{bmatrix}
+```math
+\begin{bmatrix}
 T'_{p,1}\\
 T_{p,2}'\\
 T_{p,3}'\\
@@ -147,13 +162,18 @@ T_{p,3}\\
 \vdots\\
 T_{p,N_c-1}\\
 T_{p,N_c}
-\end{bmatrix}$$
+\end{bmatrix}
+```
 Where the prime $'$ represents the spatial derivative, and the top and bottom rows are zero because of the Neumann conditions on the plate boundaries. Call this matrix $D_{p1}$ and write the discrete derivative as
-$$\overline{T'}_p = D_{p1} \overline{T}_p$$
+
+```math
+\overline{T'}_p = D_{p1} \overline{T}_p
+```
 
 We need the second derivative for the conductive term as well.
 
-$$\begin{bmatrix}
+```math
+\begin{bmatrix}
 T_{p,1}''\\
 T_{p,2}''\\
 T_{p,3}''\\
@@ -176,26 +196,36 @@ T_{p,3}\\
 \vdots\\
 T_{p,N_c-1}\\
 T_{p,N_c}
-\end{bmatrix}$$
+\end{bmatrix}
+```
 Where we estimated the second derivative at the boundaries using the Neumann conditions.
 
-$$\frac{T_{p,N_c+1} - T_{p,N_c-1}}{2\Delta y} = 0 \implies T_{p,N_c+1} = T_{p,N_c-1}$$
-$$\implies T''_{p,N_c} \approx \frac{T_{p,N_c+1} + T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y ^2} = \frac{2T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y^2}$$
+```math
+\frac{T_{p,N_c+1} - T_{p,N_c-1}}{2\Delta y} = 0 \implies T_{p,N_c+1} = T_{p,N_c-1}
+```
+
+```math
+\implies T''_{p,N_c} \approx \frac{T_{p,N_c+1} + T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y ^2} = \frac{2T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y^2}
+```
 
 and similarly for $T''_{p,1}$.
 
 Denote this matrix as $D_{p2}$ and use this compact form for discretized second derivative.
 
-$$\overline{T''}_p = D_{p2}T_p$$
+```math
+\overline{T''}_p = D_{p2}T_p
+```
 
 Putting everything together, we get the following system of ODEs for the discretized plate subsystem.
 
-$$\dot{\overline{T}_p} = \frac{1}{\rho_p \delta C_{pp}}\left( S + \delta k_p D_{p2}\overline{T}_p - h_{pf}(\overline T_p - \overline T_f) - h_{pa}(\overline T_p - T_a) - \alpha(\lVert \overline T_p \rVert^4  - T_{\text{sky}}^4) \right)$$
+```math
+\dot{\overline{T}_p} = \frac{1}{\rho_p \delta C_{pp}}\left( S + \delta k_p D_{p2}\overline{T}_p - h_{pf}(\overline T_p - \overline T_f) - h_{pa}(\overline T_p - T_a) - \alpha(\lVert \overline T_p \rVert^4  - T_{\text{sky}}^4) \right)
+```
 
 ### Fluid in Collector
 We can take $T_{f,0} = T_d$  and $T_{f,N_c+1} = T_r$ and use the central difference approximation as usual to get
 
-$$
+```math
 \begin{bmatrix}
 T'_{f,1}\\
 T'_{f,2}\\
@@ -229,27 +259,43 @@ T_{f,N_c}
 0\\
 T_r
 \end{bmatrix}
-$$
+```
 
 Again, compact notation
-$$\overline{T}_f' = D_f\overline{T}_f + d_f$$
+```math
+\overline{T}_f' = D_f\overline{T}_f + d_f
+```
 So that
-$$\dot{\overline{T}}_f = \frac{1}{\rho_f A_c C_{pf}}\left(W h_{pf}(\overline{T}_p - \overline  T_f) - \dot m C_{pf} (D_f \overline T_f + d_f)\right)$$
+```math
+\dot{\overline{T}}_f = \frac{1}{\rho_f A_c C_{pf}}\left(W h_{pf}(\overline{T}_p - \overline  T_f) - \dot m C_{pf} (D_f \overline T_f + d_f)\right)
+```
 ### Final System of Equations
-$$\dot{\overline{T}_p} = \frac{1}{\rho_p \delta C_{pp}}\left( S + \delta k_p D_{p2}\overline{T}_p - h_{pf}(\overline T_p - \overline T_f) - h_{pa}(\overline T_p - T_a) - \alpha(\lVert \overline T_p \rVert^4  - T_{\text{sky}}^4) \right)$$
-$$\dot{\overline{T}}_f = \frac{1}{\rho_f A_c C_{pf}}\left(W h_{pf}(\overline{T}_p - \overline  T_f) - \dot m C_{pf} (D_f \overline T_f + d_f)\right)$$
-$$\dot{\overline{T}}_l = \frac{1}{(\rho C)_l}(D_l \overline{T}_l + d_l) - h_{ta}A(\overline T_l - T_a)$$
-$$(mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)$$
-$$(mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)$$
+```math
+\dot{\overline{T}_p} = \frac{1}{\rho_p \delta C_{pp}}\left( S + \delta k_p D_{p2}\overline{T}_p - h_{pf}(\overline T_p - \overline T_f) - h_{pa}(\overline T_p - T_a) - \alpha(\lVert \overline T_p \rVert^4  - T_{\text{sky}}^4) \right)
+```
+```math
+\dot{\overline{T}}_f = \frac{1}{\rho_f A_c C_{pf}}\left(W h_{pf}(\overline{T}_p - \overline  T_f) - \dot m C_{pf} (D_f \overline T_f + d_f)\right)
+```
+```math
+\dot{\overline{T}}_l = \frac{1}{(\rho C)_l}(D_l \overline{T}_l + d_l) - h_{ta}A(\overline T_l - T_a)
+```
+```math
+(mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)
+```
+```math
+(mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)
+```
 ### Layout in Memory
 We set ourselves up for contiguous memory accesses.
-$$\begin{bmatrix}
+```math
+\begin{bmatrix}
 \overline{T}_p\\
 T_d\\
 \overline{T}_f\\
 T_r\\
 \overline{T}_l
-\end{bmatrix}$$
+\end{bmatrix}
+```
 If we use an array/tensor programming language/library with GPU support (JuliaGPU, Halide, ArrayFire, TensorFlow etc), GPU acceleration should be simple to incorporate).
 ##  References
 - [1] Incropera, Frank P., et al. Fundamentals of heat and mass transfer. Vol. 6. New York: Wiley, 1996.
