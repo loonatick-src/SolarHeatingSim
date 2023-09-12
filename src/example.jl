@@ -15,11 +15,11 @@ end  # module
 
 ode_f!(du, u, cache, t) = f!(du, u, cache)
 
-function using_DifferentialEquations_jl(;tspan=(0.0,100_000), dt=1.0e-2)
+function using_DifferentialEquations_jl(;tspan=(0.0,10.0), dt=1.0e-2)
     model =SWHSModel()
     _prob = SWHSProblem(model)
     u0 = _prob.u
     cache = _prob.cache
     prob = ODEProblem(ode_f!, u0, tspan, cache)
-    sol = solve(prob, Tsit5(); saveat=10.0)
+    sol = solve(prob, Tsit5(); saveat=(last(tspan)-first(tspan))/10.0)
 end
