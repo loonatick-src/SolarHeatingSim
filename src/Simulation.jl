@@ -1,94 +1,134 @@
 module Simulation
 
 using UnPack
+using LinearAlgebra: dot, mul!
 
-export SWHSModel, SWHSProblem #, solve
+export SWHSModel, SWHSProblem
 export forward_euler, RK4, f!
 export get_plate_view, get_fluid_view, get_tank_view
 export pde_equations
 
-include("model.jl")
-
+include("utilities.jl")
 
 @kwdef struct SWHSModel{T}
+    Ns::Int= 10       # stratifications count for tank
+    Nc::Int= 100      # number of points in the discretized mesh of collector    
     ρp::T  = 8.0e3    # density of plate
+    ρf::T  = 1.0e3    # working fluid density
+    ρe::T  = 1.5e3    # effective density (tank + wokring fluid)
     δ::T   = 0.1      # plate thickness
     W::T   = 1.0      # plate width
     L::T   = 2.0      # plate length
+    H::T   = 10.0     # height of tank
+    ΔH::T  = H/Ns     # height of each stratified layer
+    Δy::T  = L/Nc
+    dt::T  = 5.0      # tank diameter         
+    dr::T  = 0.1      # riser pipe diameter
+    dd::T  = dr       # down comer pipe diameter    
+    kp::T  = 50.0     # thermal conductivity of plate
     Cpp::T = 450.0    # specific heat capacity of plate
+    Cpf::T = 4.2e3    # specific heat capacity of working fluid
+    Cpe::T = 5000.0   # effective specific heat of tank + working fluid
     S::T   = 800.0    # radiation flux
     hpf::T = 1000.0   # heat transfer coefficient (plate and working fluid)
     hpa::T = 100.0    # heat transfer coefficient (plate and atmosphere)
+    hra::T = 100.0    # heat transfer coefficient (riser pipe and ambient)
+    hda::T = hra      # heat transfer coefficient (down pipe and ambient)
+    hta::T = 500.0    # loss coefficient (storage tank)    
     Ta::T  = 300.0    # ambient temperature
     T∞::T  = 295.0    # sky temperature
     α::T   = 5.5e-8   # radiation coefficient
-    ρf::T  = 1.0e3    # working fluid density
-    Af::T  = W*L*0.2      # transverse cross section area of risers
-    Cpf::T = 4.2e3    # specific heat capacity of working fluid
-    mdot::T = 0.5 * Af * ρf  # mass flow rate (assuming 0.5m per s in risers
-    ρe::T  = 1.5e3    # effective density (tank + wokring fluid)
-    Cpe::T = 5000.0   # effective specific heat of tank + working fluid
-    V::T   = 10.0     # volume of each stratified tank layer
-    A::T   = 5.0      # contact area between tank and atmosphere per stratification
-    hta::T = 500.0    # loss coefficient (storage tank)
-    Ns::Int= 10       # stratifications count for tank
-    Nc::Int= 100     # number of points in the discretized mesh of collector
+    Af::T  = W*L*0.2  # transverse cross section area pipes in collector
+    mdot::T = 0.5 * Af * ρf  # mass flow rate (assuming 0.5m per s in collector pipes
+    A::T   = π*dt*ΔH  # ambient contact area per stratified layer
+    V::T   = ΔH*π*(dt^2)/4  # tank volume per stratified layer
+    ρCl::T = 1.0e3    # TODO: decide value
+    mCr::T = 1.0e3    # TODO: decide value
+    mCd::T = mCr
+    plate_begin::Int = 1
+    plate_end::Int = plate_begin + Nc - 1
+    dc_idx::Int = plate_end+1
+    fluid_begin::Int = dc_idx+1
+    fluid_end::Int = fluid_begin + Nc - 1
+    r_idx::Int = fluid_end+1
+    tank_begin::Int = r_idx+1
+    tank_end::Int = tank_begin+Ns-1
 end
 
 value_type(::SWHSModel{T}) where T = T
 
-struct SWHSProblem{T}
-    model::SWHSModel{T}
-    u::Vector{T}
-    du::Vector{T}
-    # Δy::T
-    # Δt::T  
-    # c1::T
-    # c2::T
-    # c3::T
-    # c4::T
-    # c5::T
-    # Tf0::T
-    # Tp0::T
-    function SWHSProblem(model::SWHSModel; Δt = 0.001, Tf0 = 290.0, Tp0 = 300.0)
+@kwdef struct SWHSCache
+    model::SWHSModel    = SWHSModel()
+    # finite difference (FD) matrices and the FD-like matrix
+    Dp2::AbstractMatrix = plate_FD2_matrix(model.Δy, model.Nc)
+    Df1::AbstractMatrix = fluid_FD1_matrix(model.Δy, model.Nc)
+    Dl::AbstractMatrix  = tank_matrix(value_type(model), model.Ns)
+    # pre-allocated buffers
+    Dp2_Tp::AbstractVector = zeros(value_type(model), model.Nc)
+    Df1_Tf::AbstractVector = zeros(value_type(model), model.Nc)
+    Dl_Tl::AbstractVector = zeros(value_type(model), model.Ns)
+    # coefficients used in the equations
+    ρp_δ_Cpp_inv::Number    = 1/(model.ρp * model.δ * model.Cpp)
+    δ_kp::Number        = model.δ * model.kp
+    ρf_Af_Cpf_inv::Number   = 1/(model.ρf * model.Af * model.Cpf)
+    mdot_Cpf::Number    = model.mdot * model.Cpf
+    π_dr_hra::Number    = π*model.dr * model.hra
+    π_dd_hda::Number    = π*model.dd * model.hda
+end
+
+struct SWHSProblem
+    u::AbstractVector
+    du::AbstractVector
+    cache::SWHSCache
+    function SWHSProblem(model::SWHSModel; Tf0 = 290.0, Tp0 = 300.0, Td0=Tf0, Tr0=Tf0)
         T = value_type(model)
-        @unpack Cpp, ρp, δ, L, Ns, mdot, V, Cpe, Nc = model
-        @unpack W, hpf, ρf, Af, Cpf, ρe, hta, A = model
-        N = 2Nc + Ns
+        @unpack Nc, Ns, plate_begin, plate_end, fluid_begin, fluid_end, tank_begin, tank_end, dc_idx, r_idx = model
+        N = 2Nc + Ns + 2
         u = zeros(T, N)
         du = zeros(T, N)
-        u[1:Nc] .= Tp0
-        u[Nc+1:end] .= Tf0
-        # Δy = L / Nc
-        # c1 = 1/(Cpp * ρp * δ)
-        # c2 = 1/(ρf * Af)
-        # c3 = W*hpf/Cpf
-        # c4 = 1/(ρe*V)
-        # c5 = hta * A / Cpe
-        new{Float64}(model, u, du) #, Δy)
+        @assert length(@view u[plate_begin:plate_end]) == Nc
+        u[plate_begin:plate_end] .= Tp0
+        u[dc_idx] = Td0
+        @assert length(@view u[fluid_begin:fluid_end]) == Nc
+        u[fluid_begin:fluid_end] .= Tf0
+        u[r_idx] = Tr0
+        @assert length(@view u[tank_begin:tank_end]) == Ns
+        u[tank_begin:tank_end] .= Tf0
+        cache = SWHSCache(;model=model)
+        new(u, du, cache)
     end
 end
 
-# struct GenericSWHSProblem{T,BufType<:AbstractArray}
-#     model::SWHSModel{T}
-#     u::BufType
-#     du::BufType
-#     function SWHSProblem(model::SWHSModel, u::BufType, du::BufType; Δt = 0.001, Tf0 = 290.0, Tp0 = 300.0) where {BufType <: AbstractArray}
-#         T = value_type(model)
-#         @unpack Cpp, ρp, δ, L, Ns, mdot, V, Cpe, Nc = model
-#         @unpack W, hpf, ρf, Af, Cpf, ρe, hta, A = model
-#         N = 2Nc + Ns
-#         u[1:Nc] .= Tp0
-#         u[Nc+1:end] .= Tf0
-#         # Δy = L / Nc
-#         # c1 = 1/(Cpp * ρp * δ)
-#         # c2 = 1/(ρf * Af)
-#         # c3 = W*hpf/Cpf
-#         # c4 = 1/(ρe*V)
-#         # c5 = hta * A / Cpe
-#         new{Float64}(model, u, du) #, Δy)
-#     end
-# end
+function f!(du, u, cache::SWHSCache)
+    @unpack model = cache
+    @unpack plate_begin, plate_end, fluid_begin, fluid_end, tank_begin, tank_end, dc_idx, r_idx = model
+    @unpack S, hpf, hpa, α, T∞, Ta, W, ρCl, mCr, mCd, mdot = model
+    @unpack ρp_δ_Cpp_inv, ρf_Af_Cpf_inv, δ_kp, Dp2, Dp2_Tp, Df1, Df1_Tf, Dl, Dl_Tl = cache
+    @unpack π_dd_hda, π_dr_hra, mdot_Cpf = cache
+    u_p  = @view u[plate_begin:plate_end]
+    u_f  = @view u[fluid_begin:fluid_end]
+    u_l  = @view u[tank_begin:tank_end]
+    du_p = @view du[plate_begin:plate_end]
+    du_f = @view du[fluid_begin:fluid_end]
+    du_l = @view du[tank_begin:tank_end]
+    Td = u[dc_idx]
+    Tr = u[r_idx]
+    mul!(Dp2_Tp, Dp2, u_p)
+    mul!(Df1_Tf, Df1, u_f)
+    Df1_Tf[begin] -= Td
+    Df1_Tf[end] += Tr
+    mul!(Dl_Tl, Dl, u_l)
+    Dl_Tl[begin] += Tr
+    Tp⁴ = dot(u_p,u_p)^2
+    Tr = u[r_idx]
+    Td = u[dc_idx]
+    W_hpf = W * hpf
+    @. du_p = ρp_δ_Cpp_inv * (S + δ_kp*Dp2_Tp - hpf*(u_p - u_f) - hpa*(u_p - Ta) - α*(Tp⁴ - T∞))
+    @. du_f = ρf_Af_Cpf_inv * (W_hpf * (u_p - u_f) - mdot_Cpf*Df1_Tf)
+    @. du_l = 1/ρCl * Dl_Tl - π_dr_hra * (Tr - Ta)
+    du[r_idx] = (mdot / mCr) * (u_f[end] - Tr) - (π_dr_hra/mCr) * (Tr - Ta)
+    du[dc_idx] = (mdot / mCd) * (u_l[end] - Td) - (π_dd_hda/mCd) * (Td - Ta)
+end
 
 function reset_problem!(prob::SWHSProblem; Tf0 = 290.0, Tp0 = 300.0)
     @unpack Nc, Ns = prob.model
@@ -98,65 +138,13 @@ function reset_problem!(prob::SWHSProblem; Tf0 = 290.0, Tp0 = 300.0)
     prob
 end
 
-function f!(du, u, prob::SWHSProblem)
-    @unpack ρf, Af, Cpf, mdot, W, hpf, Ns, Nc, hpa, T∞ = prob.model
-    @unpack Cpp, δ, ρp, ρe, Cpe, V, A, hta, S, Ta, α, L = prob.model
-    Δy = L / Nc
-    # TODO: consider precomputing these values and storing in a cache struct
-    plate_begin = firstindex(u)
-    plate_end = Nc
-    fluid_begin = plate_end+1
-    fluid_end = 2Nc
-    tank_begin = fluid_end + 1
-    tank_end = lastindex(u)
 
-    Tp = @view u[plate_begin:plate_end]
-    dTp = @view du[plate_begin:plate_end]
-    Tf = @view u[fluid_begin:fluid_end]
-    dTf = @view du[fluid_begin:fluid_end]
-    @assert length(Tp) == length(Tf) == Nc
-    Tl = @view u[tank_begin:tank_end];
-    dTl = @view du[tank_begin:tank_end]
-    Tf_m = @view u[fluid_begin+1:fluid_end-1]
-    Tp_m = @view u[plate_begin+1:plate_end-1]
-    @assert length(Tf_m) == length(Tp_m) == Nc-2
-    dTf_m = @view du[fluid_begin+1:fluid_end-1]
-    Tf_sl = @view u[fluid_begin:fluid_end-2]
-    Tf_sr = @view u[fluid_begin+2:fluid_end]
-    Tl_r = @view u[tank_begin+1:end]
-    dTl_r = @view du[tank_begin+1:end]
-    Tl_l = @view u[tank_begin:end-1]
-
-    @assert length(Tl) == Ns
-
-    ρp_δ_Cpp_inv = 1/(ρp*δ*Cpp)
-    ρf_Af_Cpf_inv = 1/(ρf * Af * Cpf)
-    mdot_Cpf = mdot * Cpf
-    W_hpf = W*hpf
-    ρe_V_Cpe_inv = 1/(ρe * V * Cpe)
-    mdot_Cpe = mdot * Cpe
-    hta_A = hta * A
-    
-    # compute dTₚ/dt
-    @. dTp = ρp_δ_Cpp_inv * (S - hpf * (Tp - Tf) - hpa * (Tp - Ta) - α * (Tp^4 - T∞^4))
-    # compute dTf/dt
-    # i = 1
-    dTf[begin] = ρf_Af_Cpf_inv * (W_hpf * (Tp[begin] - Tf[begin]) - mdot_Cpf * (Tf[begin+1] - Tl[end])/(2Δy))
-    @. dTf_m = ρf_Af_Cpf_inv * (W_hpf * (Tp_m - Tf_m) - mdot_Cpf * (Tf_sr - Tf_sl)/(2Δy))
-    dTf[end] = ρf_Af_Cpf_inv * (W_hpf * (Tp[end] - Tf[end]) - mdot_Cpf * (Tl[begin] - Tf[end-1])/(2Δy))
-
-    # compute dTₗ/dt
-    dTl[begin] = ρe_V_Cpe_inv * (mdot_Cpe * (Tf[end] - Tl[begin]) - hta_A*(Tl[begin] - Ta))
-    @. dTl_r = ρe_V_Cpe_inv * (mdot_Cpe * (Tl_r - Tl_l) - hta_A*(Tl_r - Ta))
-    
-    du
-end
 
 function forward_euler(f!, tspan, dt, prob::SWHSProblem)
     @unpack u, du = prob
     t = first(tspan)
     while t < last(tspan)
-        f!(du, u, prob)
+        f!(du, u, prob.cache)
         u .+= du
         t += dt
     end
@@ -165,6 +153,7 @@ end
 
 function RK4(f!, tspan, dt, prob::SWHSProblem)
     @unpack u, du = prob
+    @unpack cache = prob
     T = eltype(u)
     k1 = zeros(T, length(u))
     k2 = zeros(T, length(u))
@@ -172,108 +161,31 @@ function RK4(f!, tspan, dt, prob::SWHSProblem)
     k4 = zeros(T, length(u))
     t = first(tspan)
     while t < last(tspan)
-        f!(k1, u, prob)
-        f!(k2, u .+ dt .* k1 ./ 2, prob)
-        f!(k3, u .+ dt .* k2 ./ 2, prob)
-        f!(k4, u .+ dt .* k3, prob)
+        f!(k1, u, cache)
+        f!(k2, u .+ dt .* k1 ./ 2, cache)
+        f!(k3, u .+ dt .* k2 ./ 2, cache)
+        f!(k4, u .+ dt .* k3, cache)
         @. u += dt/6 * (k1 + 2k2 + 2k3 + k4)
         t += dt
     end
     u
 end
 
-function get_plate_view(prob::SWHSProblem)
-    @unpack u = prob
-    @unpack Nc, Ns = prob.model
-    plate_begin = firstindex(u)
-    plate_end = plate_begin + Nc - 1
+function plate_view(prob::SWHSProblem)
+    @unpack plate_begin, plate_end = prob.cache.model
     @view u[plate_begin:plate_end]
 end
 
-function get_fluid_view(prob::SWHSProblem)
-    @unpack u = prob
-    @unpack Nc, Ns = prob.model
-    fluid_begin = firstindex(u) + Nc
-    fluid_end = fluid_begin + Nc - 1
+
+function fluid_view(prob::SWHSProblem)
+    @unpack fluid_begin, fluid_end = prob.cache.model
     @view u[fluid_begin:fluid_end]
 end
 
-function get_tank_view(prob::SWHSProblem)
-    @unpack u = prob
-    @unpack Nc, Ns = prob.model
-    tank_begin = firstindex(u) + 2Nc
-    tank_end = lastindex(u)
+function tank_view(prob::SWHSProblem)
+    @unpack tank_begin, tank_end = prob.cache.model
     @view u[tank_begin:tank_end]
 end
-
-
-# function step!(timeseries_data, prob::SWHSProblem, i)
-#     @unpack Δt, Δy, Nc, c1, c2, c3, c4, c5 = prob
-#     @unpack Ns, S, mdot, hpf, hpa, hta, Ta, T∞, α = prob.model
-#     Tcurr = @view timeseries_data[:,i]
-#     Tprev = @view timeseries_data[:,i-1]
-    
-#     plate_begin = firstindex(Tcurr)
-#     plate_end = Nc
-#     fluid_begin = plate_end+1
-#     fluid_end = 2Nc
-#     tank_begin = fluid_end + 1
-#     tank_end = lastindex(Tcurr)
-    
-#     Tp_curr = @view Tcurr[plate_begin:plate_end]
-#     Tp_prev = @view Tprev[plate_begin:plate_end]
-#     Tf_curr = @view Tcurr[fluid_begin:fluid_end]
-#     Tf_prev = @view Tprev[fluid_begin:fluid_end]
-#     Tl_curr = @view Tcurr[tank_begin:tank_end]
-#     Tl_prev = @view Tprev[tank_begin:tank_end]
-#     @assert length(Tp_curr) == length(Tf_curr) == Nc
-#     @assert length(Tl_curr) == Ns
-
-#     c1Δt = c1*Δt
-#     c2Δt = c2*Δt
-#     c4Δt = c4*Δt
-    
-#     # update plate temperature
-#     Tp_curr .= Tp_prev .+ c1Δt .* (S .- hpf .* (Tp_prev .- Tf_prev) .- hpa .* (Tp_prev .- Ta) .- α .* (Tp_prev .^ 4 .- (T∞^4)))
-#     # update collector fluid temperature
-#     Tf_curr[begin] = Tf_prev[begin] + c2Δt *(c3*(Tp_prev[begin] - Tf_prev[begin]) - mdot* (Tf_prev[begin+1] - Tl_prev[end])/(2Δy))
-#     Tf_curr_m = @view Tf_curr[begin+1:end-1]  # exclude terminal entries
-#     Tf_prev_m = @view Tf_prev[begin+1:end-1]
-#     Tp_curr_m = @view Tp_curr[begin+1:end-1]
-#     Tp_prev_m = @view Tp_prev[begin+1:end-1]
-#     Tf_prev_m_sl = @view Tf_prev[begin:end-2]  # `_sl` ≡ shifted left
-#     Tf_prev_m_sr = @view Tf_prev[begin+2:end]  # `_sr` ≡ shifted right
-#     Tf_curr_m .= Tf_prev_m .+ c2Δt .* (c3.*(Tp_prev_m .- Tf_prev_m) .- mdot .* (Tf_prev_m_sr .- Tf_prev_m_sl)/(2Δy))
-#     Tf_curr[end] = Tf_prev[end] + c2Δt*(c3*(Tp_prev[end] - Tf_prev[end]) - mdot * (Tl_prev[end] - Tf_prev[end-1])/(2Δy))
-#     # update tank temperature
-#     Tl_curr[begin] = Tl_prev[begin] + c4Δt * (mdot * (Tf_prev[end] - Tl_prev[begin]) - c5*(Tl_prev[begin] - Ta))
-#     Tl_curr_m = @view Tl_curr[begin+1:end]
-#     Tl_prev_m = @view Tl_prev[begin+1:end]
-#     Tl_prev_m_sl = @view Tl_prev[begin:end-1]
-#     Tl_curr_m .= Tl_prev_m .+ c4Δt .* (mdot .* (Tl_prev_m_sl .- Tl_prev_m) - c5 .* (Tl_prev_m .- Ta))
-#     timeseries_data
-# end
-
-# function solve(prob::SWHSProblem; T=0.1)
-#     @unpack model, Nc, Tp0, Tf0, Δt = prob
-#     @unpack Ns = model
-#     maxiter = convert(Int, T ÷ Δt)
-#     A = 4.0  # TODO: put this in the model
-#     N = 2Nc + Ns
-#     timeseries_data = zeros(N,maxiter)
-#     timeseries_data[begin:begin+Nc-1,:] .= Tp0
-#     timeseries_data[Nc+1:end] .= Tf0
-#     for i in 2:maxiter
-#         step!(timeseries_data, prob, i)
-#     end
-#     timeseries_data
-# end
-
-# function main()
-#     model = SWHSModel()
-#     prob = SWHSProblem(model)
-#     timeseries_data = solve(prob)
-# end
 
 include("example.jl")
 
