@@ -1,6 +1,12 @@
 """
 Previous attempts that were not particularly well architected.
-They weren't correct either, so RIP.
+
+The main probems I ran into/lessons I learned were
+- boundary conditions were not properly handled
+- hardcoded a specific numeric scheme (FTCS) instead of keeping it generic
+among a few other things
+
+both these limitations have been addressed in the final implementation.
 """
 
 function step!(timeseries_data, prob::SWHSProblem, i)
