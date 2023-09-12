@@ -44,15 +44,19 @@ We have the following processes
 - Solar radiation, $\propto T_p^4 - T_{\text{sky}}^4$ (Stefan-Boltzmann law)
 - Convective transfer to fluid, $\propto  T_p - T_f$ (Newton's law of cooling)
 - Convective loss to atmosphere, $\propto T_p - T_a$ (Newton's law of cooling)
+
 $$\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = S + \delta k_p \frac{\partial^2 T_p}{\partial y^2}- h_{pf}(T_p - T_f) - h_{pa}(T_p - T_a) - \alpha(T_p^4 - T_{\text{sky}}^4)$$
 
 where $\alpha$ is a constant that includes the Stefan-Boltzmann constant, emissivities etc. This equation equation models heat transfer rate per unit area of the collector. Since we assume no dynamics along the width of the collector, we multiply the equation by the width $W$ of the collector to get the effective dynamics along the length of the conductor ($T_p = T_p(t, y)$). 
 
 $$W\rho_p \delta C_{pp}\frac{\partial T_p}{\partial t} = WS - Wh_{pf}(T_p - T_f) - Wh_{pa}(T_p - T_a) - W\alpha(T_p^4 - T_{\text{sky}}^4)$$
+
 Note that we only need the width factor to get the source term for the 1D advection equation used for simulating  the working fluid in the collector.
+
 $$\frac{\partial T_p}{\partial t} = \frac{1}{\rho_p \delta C_{pp}}\left( S + \delta k_p \frac{\partial^2 T_p}{\partial y^2}- h_{pf}(T_p - T_f) - h_{pa}(T_p - T_a) - \alpha(T_p^4 - T_{\text{sky}}^4) \right)$$
 
 We use Neumann boundary conditions:
+
 $$\frac{\partial T_p}{\partial T_y} = 0\quad \text{at }y = 0, y = L$$
 #### Working Fluid
 We model heat transfer through and by the fluid using a 1D advection equation with the source term being the plate-fluid convective transfer term.
@@ -63,16 +67,22 @@ where $A_f$ is the transverse flow cross section. Note that mass conservation re
 
 $$\rho_f A_c C_{pf}\frac{\partial T_f}{\partial t} + \dot{m} C_{pf}\frac{\partial T_f}{\partial y} = Wh_pf(T_p - T_f),$$
 $$\implies \frac{\partial T_f}{\partial t} = \frac{1}{\rho_f A_c C_{pf}}\left(W h_{pf}(T_p - T_f) - \dot m C_{pf} \frac{\partial T_p}{\partial y}\right)$$
+
 ### Storage Tank
 We use a stratified, well-mixed tank model (TODO: add figure)
+
 $$(\rho C)_l V \frac{dT_{l,i}}{dt} = \dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a),$$
 $$\implies \frac{dT_{l,i}}{dt} = \frac{1}{(\rho C)_l V}\left(\dot{m} C_p(T_{l,i-1} - T_{l,i}) - h_{ta}A(T_{l,i} - T_a)\right)$$
+
 for $i \in 1 \ldots N_s$, where $N_s$ is the number of stratification layers, (model parameter). We let $T_{l,0}(t) = T_r(t)$, where $T_t$ is the temperature of the up-riser pipe node connecting the collector outlet to the tank inlet (more on the connecting pipes later).
 Note that $T_l$ is the temperature of the same working fluid as in the collector, but we use a different subscript to distinguish between the two systems.
 This model is based on lecture 29 of [3], and a more detailed model is developed in (**TODO: cite**).
 We can write the system of equations for the storage tank in vector form
+
 $$\dot{\overline{T}}_l = \frac{1}{(\rho C)_l}(D_l \overline{T}_l + d_l) - h_{ta}A(\overline T_l - T_a)$$
+
 where
+
 $$D_l\overline{T}_l + d_l = \begin{bmatrix}
 	-1 \\
 	1 & -1\\
@@ -101,11 +111,15 @@ T_{l,N_s}
 	0
 \end{bmatrix}
 $$
+
 ### Connecting Pipes
 We assume that the temperature drop across the connecting pipes is small and model them as single nodes between the collector and the tank, similar to as done in (TODO: cite). Denote $\text{d}$ as the down comer pipe that leads flow into the collector, and $\text{r}$ as the up-riser pipe leading from the collector to the tank. $T_r = T_{l,0}$, and $T_d$ will be used in a similar manner with the collector when discretizing the equations.
+
 $$(mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)$$
 $$(mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)$$
+
 ## Numerical Considerations
+
 $$\frac{\partial T}{\partial y} \approx \frac{T_{i+1} - T_{i-1}}{2\Delta y} \quad \forall i \in 1,\ldots N_c,$$
 
 where $T_{i} = T(t, i\Delta y)$, and $N_c$ is the number of degrees of freedom in the discretized mesh.   We also need to take into account the boundary conditions.
@@ -164,16 +178,23 @@ T_{p,N_c-1}\\
 T_{p,N_c}
 \end{bmatrix}$$
 Where we estimated the second derivative at the boundaries using the Neumann conditions.
+
 $$\frac{T_{p,N_c+1} - T_{p,N_c-1}}{2\Delta y} = 0 \implies T_{p,N_c+1} = T_{p,N_c-1}$$
 $$\implies T''_{p,N_c} \approx \frac{T_{p,N_c+1} + T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y ^2} = \frac{2T_{p,N_c-1} - 2T_{p,N_c}}{\Delta y^2}$$
+
 and similarly for $T''_{p,1}$.
 
 Denote this matrix as $D_{p2}$ and use this compact form for discretized second derivative.
+
 $$\overline{T''}_p = D_{p2}T_p$$
+
 Putting everything together, we get the following system of ODEs for the discretized plate subsystem.
+
 $$\dot{\overline{T}_p} = \frac{1}{\rho_p \delta C_{pp}}\left( S + \delta k_p D_{p2}\overline{T}_p - h_{pf}(\overline T_p - \overline T_f) - h_{pa}(\overline T_p - T_a) - \alpha(\lVert \overline T_p \rVert^4  - T_{\text{sky}}^4) \right)$$
+
 ### Fluid in Collector
 We can take $T_{f,0} = T_d$  and $T_{f,N_c+1} = T_r$ and use the central difference approximation as usual to get
+
 $$
 \begin{bmatrix}
 T'_{f,1}\\
@@ -209,6 +230,7 @@ T_{f,N_c}
 T_r
 \end{bmatrix}
 $$
+
 Again, compact notation
 $$\overline{T}_f' = D_f\overline{T}_f + d_f$$
 So that
