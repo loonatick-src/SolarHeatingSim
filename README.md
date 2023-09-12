@@ -124,10 +124,10 @@ T_{l,N_s}
 We assume that the temperature drop across the connecting pipes is small and model them as single nodes between the collector and the tank, similar to as done in (TODO: cite). Denote $\text{d}$ as the down comer pipe that leads flow into the collector, and $\text{r}$ as the up-riser pipe leading from the collector to the tank. $T_r = T_{l,0}$, and $T_d$ will be used in a similar manner with the collector when discretizing the equations.
 
 ```math
-(mC)_r\frac{dT_r}{dt} = \dot m(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)
+(mC)_r\frac{dT_r}{dt} = \dot m C_pf(T_f(L) - T_r) - \pi d_r h_{ra}(T_r - T_a)
 ```
 ```math
-(mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)
+(mC)_d\frac{dT_d}{dt} = \dot m C_pf(T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)
 ```
 
 ## Numerical Considerations
