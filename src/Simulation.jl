@@ -5,8 +5,9 @@ using LinearAlgebra: dot, mul!
 
 export SWHSModel, SWHSProblem
 export forward_euler, runge_kutta_4, f!, sciml_f!
-export get_plate_view, get_fluid_view, get_tank_view
-export pde_equations
+export plate_view, fluid_view, tank_view
+export run_example
+
 
 include("utilities.jl")
 

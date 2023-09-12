@@ -27,6 +27,8 @@ prob = ODEProblem(sciml_f!, u0, tspan, cache)
     @test sol.retcode == SciMLBase.ReturnCode.Success
 end
 
+include("visualization.jl")
+
 # @testset "Fully automatic solver using ModelingToolkit.jl" begin
     # TODO: these solvers take the PDE system with boundary conditions and perform the discretization for you
     # leaving this one out for now because ModelingToolkit.jl is a big bear of a dependency    
