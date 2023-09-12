@@ -4,7 +4,7 @@ using UnPack
 using LinearAlgebra: dot, mul!
 
 export SWHSModel, SWHSProblem
-export forward_euler, RK4, f!
+export forward_euler, runge_kutta_4, f!
 export get_plate_view, get_fluid_view, get_tank_view
 export pde_equations
 
@@ -57,29 +57,32 @@ end
 
 value_type(::SWHSModel{T}) where T = T
 
-@kwdef struct SWHSCache
-    model::SWHSModel    = SWHSModel()
+@kwdef struct SWHSCache{T<:Number, MatType<:AbstractMatrix, UType<:AbstractVector}
+    model::SWHSModel{T} = SWHSModel()
     # finite difference (FD) matrices and the FD-like matrix
-    Dp2::AbstractMatrix = plate_FD2_matrix(model.Δy, model.Nc)
-    Df1::AbstractMatrix = fluid_FD1_matrix(model.Δy, model.Nc)
-    Dl::AbstractMatrix  = tank_matrix(value_type(model), model.Ns)
+    Dp2::MatType        = plate_FD2_matrix(model.Δy, model.Nc)
+    Df1::MatType        = fluid_FD1_matrix(model.Δy, model.Nc)
+    Dl::MatType         = tank_matrix(value_type(model), model.Ns)
     # pre-allocated buffers
-    Dp2_Tp::AbstractVector = zeros(value_type(model), model.Nc)
-    Df1_Tf::AbstractVector = zeros(value_type(model), model.Nc)
-    Dl_Tl::AbstractVector = zeros(value_type(model), model.Ns)
+    Dp2_Tp::UType       = zeros(value_type(model), model.Nc)
+    Df1_Tf::UType       = zeros(value_type(model), model.Nc)
+    Dl_Tl::UType        = zeros(value_type(model), model.Ns)
     # coefficients used in the equations
-    ρp_δ_Cpp_inv::Number    = 1/(model.ρp * model.δ * model.Cpp)
-    δ_kp::Number        = model.δ * model.kp
-    ρf_Af_Cpf_inv::Number   = 1/(model.ρf * model.Af * model.Cpf)
-    mdot_Cpf::Number    = model.mdot * model.Cpf
-    π_dr_hra::Number    = π*model.dr * model.hra
-    π_dd_hda::Number    = π*model.dd * model.hda
+    ρp_δ_Cpp_inv::T     = 1/(model.ρp * model.δ * model.Cpp)
+    δ_kp::T             = model.δ * model.kp
+    ρf_Af_Cpf_inv::T    = 1/(model.ρf * model.Af * model.Cpf)
+    mdot_Cpf::T         = model.mdot * model.Cpf
+    π_dr_hra::T         = π*model.dr * model.hra
+    π_dd_hda::T         = π*model.dd * model.hda
 end
 
-struct SWHSProblem
-    u::AbstractVector
-    du::AbstractVector
-    cache::SWHSCache
+mat_type(::SWHSCache{T, MatType, UType}) where {T, MatType, UType} = MatType
+u_type(::SWHSCache{T, MatType, UType}) where {T, MatType, UType} = UType
+
+struct SWHSProblem{T, MatType<:AbstractMatrix, UType<:AbstractArray}
+    u::UType
+    du::UType
+    cache::SWHSCache{T, MatType, UType}
     function SWHSProblem(model::SWHSModel; Tf0 = 290.0, Tp0 = 300.0, Td0=Tf0, Tr0=Tf0)
         T = value_type(model)
         @unpack Nc, Ns, plate_begin, plate_end, fluid_begin, fluid_end, tank_begin, tank_end, dc_idx, r_idx = model
@@ -95,14 +98,16 @@ struct SWHSProblem
         @assert length(@view u[tank_begin:tank_end]) == Ns
         u[tank_begin:tank_end] .= Tf0
         cache = SWHSCache(;model=model)
-        new(u, du, cache)
+        MatType = mat_type(cache)
+        UType = u_type(cache)
+        new{T, MatType, UType}(u, du, cache)
     end
 end
 
 function f!(du, u, cache::SWHSCache)
     @unpack model = cache
     @unpack plate_begin, plate_end, fluid_begin, fluid_end, tank_begin, tank_end, dc_idx, r_idx = model
-    @unpack S, hpf, hpa, α, T∞, Ta, W, ρCl, mCr, mCd, mdot = model
+    @unpack S, hpf, hpa, α, T∞, Ta, W, ρCl, mCr, mCd, mdot, A, Δy = model
     @unpack ρp_δ_Cpp_inv, ρf_Af_Cpf_inv, δ_kp, Dp2, Dp2_Tp, Df1, Df1_Tf, Dl, Dl_Tl = cache
     @unpack π_dd_hda, π_dr_hra, mdot_Cpf = cache
     u_p  = @view u[plate_begin:plate_end]
@@ -115,19 +120,18 @@ function f!(du, u, cache::SWHSCache)
     Tr = u[r_idx]
     mul!(Dp2_Tp, Dp2, u_p)
     mul!(Df1_Tf, Df1, u_f)
-    Df1_Tf[begin] -= Td
-    Df1_Tf[end] += Tr
+    Df1_Tf[begin] -= Td/(2Δy)
+    Df1_Tf[end] += Tr/(2Δy)
     mul!(Dl_Tl, Dl, u_l)
     Dl_Tl[begin] += Tr
-    Tp⁴ = dot(u_p,u_p)^2
     Tr = u[r_idx]
     Td = u[dc_idx]
     W_hpf = W * hpf
-    @. du_p = ρp_δ_Cpp_inv * (S + δ_kp*Dp2_Tp - hpf*(u_p - u_f) - hpa*(u_p - Ta) - α*(Tp⁴ - T∞))
+    @. du_p = ρp_δ_Cpp_inv * (S + δ_kp*Dp2_Tp - hpf*(u_p - u_f) - hpa*(u_p - Ta) - α*(u_p^4 - T∞))
     @. du_f = ρf_Af_Cpf_inv * (W_hpf * (u_p - u_f) - mdot_Cpf*Df1_Tf)
-    @. du_l = 1/ρCl * Dl_Tl - π_dr_hra * (Tr - Ta)
-    du[r_idx] = (mdot / mCr) * (u_f[end] - Tr) - (π_dr_hra/mCr) * (Tr - Ta)
-    du[dc_idx] = (mdot / mCd) * (u_l[end] - Td) - (π_dd_hda/mCd) * (Td - Ta)
+    @. du_l = 1/ρCl * (Dl_Tl - A * (Tr - Ta))
+    du[r_idx] = (1/mCr) * (mdot_Cpf*(u_f[end] - Tr) - π_dr_hra*(Tr - Ta))
+    du[dc_idx] = (1/mCd) * (mdot_Cpf*(u_l[end] - Td) - π_dd_hda*(Td - Ta))
 end
 
 function reset_problem!(prob::SWHSProblem; Tf0 = 290.0, Tp0 = 300.0)
@@ -139,19 +143,18 @@ function reset_problem!(prob::SWHSProblem; Tf0 = 290.0, Tp0 = 300.0)
 end
 
 
-
 function forward_euler(f!, tspan, dt, prob::SWHSProblem)
     @unpack u, du = prob
     t = first(tspan)
     while t < last(tspan)
         f!(du, u, prob.cache)
-        u .+= du
+        u .+= dt .* du
         t += dt
     end
     u
 end
 
-function RK4(f!, tspan, dt, prob::SWHSProblem)
+function runge_kutta_4(f!, tspan, dt, prob::SWHSProblem)
     @unpack u, du = prob
     @unpack cache = prob
     T = eltype(u)
@@ -171,18 +174,17 @@ function RK4(f!, tspan, dt, prob::SWHSProblem)
     u
 end
 
-function plate_view(prob::SWHSProblem)
+function plate_view(u, prob::SWHSProblem)
     @unpack plate_begin, plate_end = prob.cache.model
     @view u[plate_begin:plate_end]
 end
 
-
-function fluid_view(prob::SWHSProblem)
+function fluid_view(u, prob::SWHSProblem)
     @unpack fluid_begin, fluid_end = prob.cache.model
     @view u[fluid_begin:fluid_end]
 end
 
-function tank_view(prob::SWHSProblem)
+function tank_view(u, prob::SWHSProblem)
     @unpack tank_begin, tank_end = prob.cache.model
     @view u[tank_begin:tank_end]
 end
