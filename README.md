@@ -251,6 +251,7 @@ T_{f,N_c-1}\\
 T_{f,N_c}
 \end{bmatrix}
 +
+\frac{1}{2\Delta y}
 \begin{bmatrix}
 -T_d\\
 0\\
