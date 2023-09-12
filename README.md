@@ -1,4 +1,29 @@
 # Rudimentary Solar Water Heating System Simulation
+## Running this repo
+The only requirement is [julia](https://julialang.org/), preferably 1.9.
+- Clone this repo
+- Start a Julia REPL in the root directory of the repo
+```shell
+julia --project=.
+```
+- Press `]` to enter Pkg mode. The REPL prompt should look like so
+```
+(Simulation) pkg>
+```
+- Instantiate the package. This step will download dependencies and take some time. Most of the heavier dependencies come from the two SciML packages. Note that solvers from this package were only used for testing the model, not for the calculating solution used for the plots.
+```
+(Simulation) pkg> instantiate
+```
+- Precompile the package. Again, this should take 5-ish minutes. Play a match of Blitz Chess maybe.
+```
+using Simulation
+```
+- Hit backspace to return to the regular REPL, run the tests and, generate plots
+```julia
+julia> include("test/runtests.jl")
+```
+
+## Assumptions and Simplifications
 We make the following assumptions and simplifications
 - Flat plate collector with parallel riser tubes
 - Temperature variations along the width of the solar collector (i.e. perpendicular to fluid flow direction) are not modelled, assume uniform mean temperature along with.
@@ -13,27 +38,41 @@ We make the following assumptions and simplifications
 ## Model Parameters
 ```julia
 @kwdef struct SWHSModel{T}
+    Ns::Int= 10       # stratifications count for tank
+    Nc::Int= 100      # number of points in the discretized mesh of collector    
     ρp::T  = 8.0e3    # density of plate
+    ρf::T  = 1.0e3    # working fluid density
+    ρe::T  = 1.5e3    # effective density (tank + wokring fluid)
     δ::T   = 0.1      # plate thickness
     W::T   = 1.0      # plate width
     L::T   = 2.0      # plate length
+    H::T   = 10.0     # height of tank
+    ΔH::T  = H/Ns     # height of each stratified layer
+    Δy::T  = L/Nc
+    dt::T  = 5.0      # tank diameter         
+    dr::T  = 0.1      # riser pipe diameter
+    dd::T  = dr       # down comer pipe diameter    
+    kp::T  = 50.0     # thermal conductivity of plate
     Cpp::T = 450.0    # specific heat capacity of plate
+    Cpf::T = 4.2e3    # specific heat capacity of working fluid
+    Cpe::T = 5000.0   # effective specific heat of tank + working fluid
     S::T   = 800.0    # radiation flux
     hpf::T = 1000.0   # heat transfer coefficient (plate and working fluid)
     hpa::T = 100.0    # heat transfer coefficient (plate and atmosphere)
+    hra::T = 100.0    # heat transfer coefficient (riser pipe and ambient)
+    hda::T = hra      # heat transfer coefficient (down pipe and ambient)
+    hta::T = 500.0    # loss coefficient (storage tank)    
     Ta::T  = 300.0    # ambient temperature
     T∞::T  = 295.0    # sky temperature
     α::T   = 5.5e-8   # radiation coefficient
-    ρf::T  = 1.0e3    # working fluid density
-    Af::T  = 0.6      # transverse cross section area of risers
-    Cpf::T = 4.2e3    # specific heat capacity of working fluid
-    mdot::T = 0.5 * Af * ρf  # mass flow rate (assuming 0.5m per s in risers
-    ρe::T  = 1.5e3    # effective density (tank + wokring fluid)
-    Cpe::T = 5000.0   # effective specific heat of tank + working fluid
-    V::T   = 10.0     # volume of each stratified tank layer
-    A::T   = 5.0      # contact area between tank and atmosphere per stratification
-    hta::T = 500.0    # loss coefficient (storage tank)
-    Ns::Int= 10       # stratifications count for tank
+    Af::T  = W*L*0.2  # transverse cross section area pipes in collector
+    mdot::T = 0.5 * Af * ρf  # mass flow rate (assuming 0.5m per s in collector pipes
+    A::T   = π*dt*ΔH  # ambient contact area per stratified layer
+    V::T   = ΔH*π*(dt^2)/4  # tank volume per stratified layer
+    ρCl::T = 1.0e3    
+    mCr::T = 1.0e3   
+    mCd::T = mCr
+    ...
 end
 ```
 ## Subsystems
@@ -298,6 +337,36 @@ T_r\\
 \end{bmatrix}
 ```
 If we use an array/tensor programming language/library with GPU support (JuliaGPU, Halide, ArrayFire, TensorFlow etc), GPU acceleration should be simple to incorporate).
+
+## Solving
+Once we have the final system of equations, we should be able to plug it into ODE and even steady-state solvers of our choice. We implement a simple fourth order explicit Runge-Kutta method.
+```julia
+function runge_kutta_4(f!, tspan, dt, prob::SWHSProblem)
+    @unpack u, du = prob
+    @unpack cache = prob
+    T = eltype(u)
+    k1 = zeros(T, length(u))
+    k2 = zeros(T, length(u))
+    k3 = zeros(T, length(u))
+    k4 = zeros(T, length(u))
+    t = first(tspan)
+    while t < last(tspan)
+        f!(k1, u, cache)
+        f!(k2, u .+ dt .* k1 ./ 2, cache)
+        f!(k3, u .+ dt .* k2 ./ 2, cache)
+        f!(k4, u .+ dt .* k3, cache)
+        @. u += dt/6 * (k1 + 2k2 + 2k3 + k4)
+        t += dt
+    end
+    u
+end
+```
+
+## Results
+![Temperature of collector plate](plots/plate.png)
+![Temperature of fluid in collector](plots/collector_fluid.png)
+![Temperature distribution across tank](plots/tank.png)
+
 ##  References
 - [1] Incropera, Frank P., et al. Fundamentals of heat and mass transfer. Vol. 6. New York: Wiley, 1996.
 - [2] Zeghib, I., & Chaker, A. (2011). Simulation of a solar domestic water heating system. Energy Procedia, 6, 292-301.
