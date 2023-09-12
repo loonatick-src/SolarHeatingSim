@@ -325,6 +325,7 @@ So that
 ```math
 (mC)_d\frac{dT_d}{dt} = \dot m (T_{l,N_s} - T_d) - \pi d_dh_{da}(T_d - T_a)
 ```
+The implementation can found [here](https://github.com/loonatick-src/SolarHeatingSim/blob/674bf4c2c539b0a0d25d93b56c25287828fc6dff/src/Simulation.jl#L131) in the source.
 ### Layout in Memory
 We set ourselves up for contiguous memory accesses.
 ```math
